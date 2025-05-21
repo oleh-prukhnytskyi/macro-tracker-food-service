@@ -1,5 +1,13 @@
 package com.olehprukhnytskyi.macrotrackerfoodservice.service.impl;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.olehprukhnytskyi.macrotrackerfoodservice.exception.InternalServerErrorException;
 import com.olehprukhnytskyi.macrotrackerfoodservice.model.Counter;
 import org.junit.jupiter.api.DisplayName;
@@ -13,14 +21,6 @@ import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class CounterServiceImplTest {
@@ -81,7 +81,8 @@ class CounterServiceImplTest {
     void getNextSequence_whenSequenceIsNull_shouldReturnOne() {
         // Given
         Counter counter = new Counter();
-        when(mongoTemplate.findAndModify(any(), any(), any(), ArgumentMatchers.eq(Counter.class)))
+        when(mongoTemplate.findAndModify(
+                any(), any(), any(), ArgumentMatchers.eq(Counter.class)))
                 .thenReturn(counter);
 
         // When
@@ -98,7 +99,8 @@ class CounterServiceImplTest {
         String sequenceName = "test-sequence";
         RuntimeException mongoException = new RuntimeException("Mongo failure");
 
-        when(mongoTemplate.findAndModify(any(), any(), any(), ArgumentMatchers.eq(Counter.class)))
+        when(mongoTemplate.findAndModify(
+                any(), any(), any(), ArgumentMatchers.eq(Counter.class)))
                 .thenThrow(mongoException);
 
         // When
@@ -108,7 +110,8 @@ class CounterServiceImplTest {
         );
 
         // Then
-        assertTrue(exception.getMessage().contains("Failed to get next sequence for: " + sequenceName));
+        assertTrue(exception.getMessage().contains("Failed to get next sequence for: "
+                + sequenceName));
         assertSame(mongoException, exception.getCause());
     }
 }

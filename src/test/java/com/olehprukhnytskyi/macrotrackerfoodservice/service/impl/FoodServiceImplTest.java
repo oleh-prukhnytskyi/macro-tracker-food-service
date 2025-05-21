@@ -1,5 +1,18 @@
 package com.olehprukhnytskyi.macrotrackerfoodservice.service.impl;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.anyString;
+import static org.mockito.BDDMockito.eq;
+import static org.mockito.BDDMockito.mock;
+import static org.mockito.BDDMockito.never;
+import static org.mockito.BDDMockito.times;
+import static org.mockito.BDDMockito.verify;
+import static org.mockito.BDDMockito.when;
+
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
@@ -23,6 +36,11 @@ import com.olehprukhnytskyi.macrotrackerfoodservice.model.Nutriments;
 import com.olehprukhnytskyi.macrotrackerfoodservice.repository.FoodRepository;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.CounterService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.GeminiService;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,24 +50,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Function;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.anyString;
-import static org.mockito.BDDMockito.eq;
-import static org.mockito.BDDMockito.mock;
-import static org.mockito.BDDMockito.never;
-import static org.mockito.BDDMockito.times;
-import static org.mockito.BDDMockito.verify;
-import static org.mockito.BDDMockito.when;
 
 @SuppressWarnings("unchecked")
 @ExtendWith(MockitoExtension.class)
@@ -73,11 +73,11 @@ class FoodServiceImplTest {
     @Mock
     private Nutriments nutriments;
     private FoodRequestDto foodRequestDto;
-	private Food food;
+    private Food food;
 
     @BeforeEach
     void setUp() {
-		NutrimentsDto nutrimentsDto = new NutrimentsDto();
+        NutrimentsDto nutrimentsDto = new NutrimentsDto();
         nutrimentsDto.setKcal(BigDecimal.ONE);
         nutrimentsDto.setCarbohydrates(BigDecimal.ONE);
         nutrimentsDto.setFat(BigDecimal.ONE);
@@ -114,7 +114,7 @@ class FoodServiceImplTest {
         FoodResponseDto result = foodService.save(new FoodRequestDto());
 
         // Then
-		assertNotNull(result);
+        assertNotNull(result);
         verify(foodRepository).findByDataHash(anyString());
         verify(foodRepository, never()).save(any());
         verify(foodRepository, never()).findById(anyString());
@@ -162,7 +162,8 @@ class FoodServiceImplTest {
     }
 
     @Test
-    @DisplayName("When food with same code exists but different data, should throw ConflictException")
+    @DisplayName("When food with same code exists but different data,"
+            + " should throw ConflictException")
     void save_whenFoodWithSameCodeExistsButDifferentData_shouldThrowConflictException() {
         // Given
         Food differentFood = new Food();
@@ -237,8 +238,6 @@ class FoodServiceImplTest {
     @DisplayName("When search succeeds, should return mapped DTO")
     void findByQuery_whenSearchSucceeds_shouldReturnMappedDto() throws IOException {
         // given
-        String query = "apple juice";
-
         FoodResponseDto dto = new FoodResponseDto();
         dto.setId("123");
 
@@ -262,13 +261,14 @@ class FoodServiceImplTest {
         );
 
         when(elasticsearchClient.search(
-                ArgumentMatchers.<Function<SearchRequest.Builder, ObjectBuilder<SearchRequest>>>any(),
+                ArgumentMatchers.<Function<SearchRequest.Builder,
+                        ObjectBuilder<SearchRequest>>>any(),
                 eq(Food.class)
         )).thenReturn(mockResponse);
         when(foodMapper.toDto(food)).thenReturn(dto);
 
         // when
-        List<FoodResponseDto> result = foodService.findByQuery(query, 0, 10);
+        List<FoodResponseDto> result = foodService.findByQuery("apple juice", 0, 10);
 
         // then
         assertEquals(1, result.size());
@@ -280,7 +280,8 @@ class FoodServiceImplTest {
     void findByQuery_whenSearchResponseHasNullHits_shouldReturnEmptyList() throws IOException {
         // Given
         when(elasticsearchClient.search(
-                ArgumentMatchers.<Function<SearchRequest.Builder, ObjectBuilder<SearchRequest>>>any(),
+                ArgumentMatchers.<Function<SearchRequest.Builder,
+                        ObjectBuilder<SearchRequest>>>any(),
                 eq(Food.class)
         )).thenReturn(null);
 
@@ -293,10 +294,12 @@ class FoodServiceImplTest {
 
     @Test
     @DisplayName("When Elasticsearch throws an IOException, should throw SearchServiceException")
-    void findByQuery_whenElasticsearchThrowsIOException_shouldThrowSearchServiceException() throws IOException {
+    void findByQuery_whenElasticsearchThrowsIoException_shouldThrowSearchServiceException()
+            throws IOException {
         // Given
         when(elasticsearchClient.search(
-                ArgumentMatchers.<Function<SearchRequest.Builder, ObjectBuilder<SearchRequest>>>any(),
+                ArgumentMatchers.<Function<SearchRequest.Builder,
+                        ObjectBuilder<SearchRequest>>>any(),
                 eq(Food.class)
         )).thenThrow(new IOException("Elastic down"));
 
@@ -307,10 +310,12 @@ class FoodServiceImplTest {
 
     @Test
     @DisplayName("When UnexpectedException occurs, should throw InternalServerErrorException")
-    void findByQuery_whenUnexpectedExceptionOccurs_shouldThrowInternalServerErrorException() throws IOException {
+    void findByQuery_whenUnexpectedExceptionOccurs_shouldThrowInternalServerErrorException()
+            throws IOException {
         // Given
         when(elasticsearchClient.search(
-                ArgumentMatchers.<Function<SearchRequest.Builder, ObjectBuilder<SearchRequest>>>any(),
+                ArgumentMatchers.<Function<SearchRequest.Builder,
+                        ObjectBuilder<SearchRequest>>>any(),
                 eq(Food.class)
         )).thenThrow(new RuntimeException("Something went wrong"));
 
@@ -335,7 +340,8 @@ class FoodServiceImplTest {
 
     @Test
     @DisplayName("When search returns results, should return product names")
-    void getSearchSuggestions_whenSearchReturnsResults_shouldReturnProductNames() throws IOException {
+    void getSearchSuggestions_whenSearchReturnsResults_shouldReturnProductNames()
+            throws IOException {
         // given
         Food food1 = new Food();
         food1.setProductName("Apple Juice");
@@ -367,7 +373,8 @@ class FoodServiceImplTest {
 
     @Test
     @DisplayName("When hits contain null sources, should filter them out")
-    void getSearchSuggestions_whenHitsContainNullSources_shouldFilterThemOut() throws IOException {
+    void getSearchSuggestions_whenHitsContainNullSources_shouldFilterThemOut()
+            throws IOException {
         // given
         Hit<Food> hit1 = mock(Hit.class);
 
@@ -388,8 +395,10 @@ class FoodServiceImplTest {
     }
 
     @Test
-    @DisplayName("When when Elasticsearch throws IOException, should throw SearchServiceException")
-    void getSearchSuggestions_whenElasticsearchThrowsIOException_shouldThrowSearchServiceException() throws IOException {
+    @DisplayName("When when Elasticsearch throws IOException,"
+            + " should throw SearchServiceException")
+    void getSearchSuggestions_whenElasticsearchThrowsIoException_shouldThrowSearchServiceException()
+            throws IOException {
         // Given
         when(elasticsearchClient.search(any(Function.class), eq(Food.class)))
                 .thenThrow(new IOException("ES down"));
@@ -419,7 +428,6 @@ class FoodServiceImplTest {
     void patch_whenFoodExists_shouldUpdateAndReturnDto() {
         // Given
         String id = "123";
-        FoodPatchRequestDto dto = new FoodPatchRequestDto();
         Food existingFood = new Food();
         existingFood.setId(id);
         Food updatedFood = new Food();
@@ -433,7 +441,7 @@ class FoodServiceImplTest {
         when(foodMapper.toDto(updatedFood)).thenReturn(expectedDto);
 
         // When
-        FoodResponseDto result = foodService.patch(id, dto);
+        FoodResponseDto result = foodService.patch(id, new FoodPatchRequestDto());
 
         // Then
         assertEquals(id, result.getId());
@@ -449,8 +457,8 @@ class FoodServiceImplTest {
         when(foodRepository.findById(id)).thenThrow(new RuntimeException("Unexpected error"));
 
         // When
-        InternalServerErrorException exception = assertThrows(InternalServerErrorException.class, () ->
-                foodService.patch(id, dto)
+        InternalServerErrorException exception = assertThrows(
+                InternalServerErrorException.class, () -> foodService.patch(id, dto)
         );
 
         // Then

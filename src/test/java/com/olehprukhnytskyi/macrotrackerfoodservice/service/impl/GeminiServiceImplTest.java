@@ -1,9 +1,17 @@
 package com.olehprukhnytskyi.macrotrackerfoodservice.service.impl;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+
 import com.olehprukhnytskyi.macrotrackerfoodservice.client.GeminiClient;
 import com.olehprukhnytskyi.macrotrackerfoodservice.exception.KeywordGenerationException;
 import com.olehprukhnytskyi.macrotrackerfoodservice.model.Food;
 import com.olehprukhnytskyi.macrotrackerfoodservice.model.Nutriments;
+import java.math.BigDecimal;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,14 +22,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.util.ReflectionTestUtils;
-import java.math.BigDecimal;
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class GeminiServiceImplTest {
@@ -55,20 +55,16 @@ class GeminiServiceImplTest {
     void generateKeywords_whenResponseIsValid_shouldReturnList() {
         // Given
         String json = """
-            {
-              "candidates": [
-                {
-                  "content": {
-                    "parts": [
-                      {
-                        "text": "protein bar, chocolate, peanuts"
-                      }
-                    ]
-                  }
-                }
-              ]
-            }
-        """;
+              {
+                "candidates": [{
+                    "content": {
+                        "parts": [{
+                            "text": "protein bar, chocolate, peanuts"
+                        }]
+                    }
+                }]
+              }
+               \s""";
 
         when(geminiClient.generateContent(any(), any()))
                 .thenReturn(ResponseEntity.ok(json));
@@ -85,20 +81,16 @@ class GeminiServiceImplTest {
     void generateKeywords_whenContentIsUnknown_shouldReturnEmptyList() {
         // Given
         String json = """
-            {
-              "candidates": [
-                {
-                  "content": {
-                    "parts": [
-                      {
-                        "text": "unknown"
-                      }
-                    ]
-                  }
-                }
-              ]
-            }
-        """;
+              {
+                "candidates": [{
+                    "content": {
+                        "parts": [{
+                            "text": "unknown"
+                        }]
+                    }
+                }]
+              }
+               \s""";
 
         when(geminiClient.generateContent(any(), any()))
                 .thenReturn(ResponseEntity.ok(json));
