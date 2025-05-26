@@ -82,6 +82,26 @@ class FoodControllerTest {
 
     @Test
     @DisplayName("When food exist, should return 200 OK and DTO")
+    void findById_whenFoodExist_shouldReturn200AndDto() throws Exception {
+        // Given
+        String foodId = "123";
+        FoodResponseDto foodDto = new FoodResponseDto();
+        foodDto.setId(foodId);
+
+        when(foodService.findById(foodId)).thenReturn(foodDto);
+
+        // When
+        MvcResult mvcResult = mockMvc.perform(get("/api/foods/" + foodId))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        // Then
+        String expected = objectMapper.writeValueAsString(foodDto);
+        assertEquals(expected, mvcResult.getResponse().getContentAsString());
+    }
+
+    @Test
+    @DisplayName("When food exist, should return 200 OK and DTO")
     void findByQuery_whenFoodExist_shouldReturn200AndDto() throws Exception {
         // Given
         FoodResponseDto dto = new FoodResponseDto();

@@ -29,6 +29,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class FoodController {
     private final FoodService foodService;
 
+    @GetMapping("/{id}")
+    public ResponseEntity<FoodResponseDto> findById(
+            @PathVariable String id) {
+        FoodResponseDto food = foodService.findById(id);
+        return ResponseEntity.ok(food);
+    }
+
     @GetMapping
     public ResponseEntity<PagedResponse<FoodResponseDto>> findByQuery(
             @RequestParam String query,

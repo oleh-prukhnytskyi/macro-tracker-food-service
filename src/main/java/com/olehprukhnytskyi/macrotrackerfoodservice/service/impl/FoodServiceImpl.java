@@ -153,6 +153,13 @@ public class FoodServiceImpl implements FoodService {
     }
 
     @Override
+    public FoodResponseDto findById(String id) {
+        Food food = foodRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Food not found with id: " + id));
+        return foodMapper.toDto(food);
+    }
+
+    @Override
     public List<String> getSearchSuggestions(String query) {
         if (query == null || query.trim().isEmpty()) {
             return Collections.emptyList();

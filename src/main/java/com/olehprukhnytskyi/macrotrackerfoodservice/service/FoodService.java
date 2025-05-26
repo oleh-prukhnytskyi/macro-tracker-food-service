@@ -10,6 +10,8 @@ public interface FoodService {
 
     List<FoodResponseDto> findByQuery(String query, int offset, int limit);
 
+    FoodResponseDto findById(String id);
+
     List<String> getSearchSuggestions(String query);
 
     FoodResponseDto patch(String id, FoodPatchRequestDto dto);
