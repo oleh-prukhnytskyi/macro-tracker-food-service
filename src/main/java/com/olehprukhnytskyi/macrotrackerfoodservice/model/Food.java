@@ -11,7 +11,6 @@ import org.springframework.data.mongodb.core.mapping.MongoId;
 @Data
 @Document(collection = "foods")
 public class Food {
-
     @MongoId
     @Field(name = "_id")
     @JsonProperty("_id")
@@ -44,4 +43,9 @@ public class Food {
     @JsonProperty("data_hash")
     @Indexed(unique = true)
     private String dataHash;
+
+    @Indexed
+    @Field(name = "user_id")
+    @JsonProperty("user_id")
+    private Long userId;
 }

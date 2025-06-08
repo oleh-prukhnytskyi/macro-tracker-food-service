@@ -36,11 +36,15 @@ import com.olehprukhnytskyi.macrotrackerfoodservice.model.Nutriments;
 import com.olehprukhnytskyi.macrotrackerfoodservice.repository.FoodRepository;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.CounterService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.GeminiService;
+import com.olehprukhnytskyi.macrotrackerfoodservice.service.S3StorageService;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import javax.imageio.ImageIO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -50,6 +54,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import software.amazon.awssdk.services.s3.S3Client;
 
 @SuppressWarnings("unchecked")
 @ExtendWith(MockitoExtension.class)
@@ -66,6 +74,10 @@ class FoodServiceImplTest {
     private NutrimentsMapper nutrimentsMapper;
     @Mock
     private FoodMapper foodMapper;
+    @MockitoBean
+    private S3Client s3Client;
+    @Mock
+    private S3StorageService s3StorageService;
 
     @InjectMocks
     private FoodServiceImpl foodService;
@@ -74,6 +86,7 @@ class FoodServiceImplTest {
     private Nutriments nutriments;
     private FoodRequestDto foodRequestDto;
     private Food food;
+    private MockMultipartFile image;
 
     @BeforeEach
     void setUp() {
@@ -100,18 +113,33 @@ class FoodServiceImplTest {
         food.setBrands("brands");
         food.setGenericName("generic_name");
         food.setNutriments(nutriments);
+
+        try {
+            BufferedImage testImage = new BufferedImage(100, 100, BufferedImage.TYPE_INT_RGB);
+            ByteArrayOutputStream os = new ByteArrayOutputStream();
+            ImageIO.write(testImage, "jpg", os);
+            image = new MockMultipartFile(
+                    "image",
+                    "image.jpg",
+                    MediaType.IMAGE_JPEG_VALUE,
+                    os.toByteArray()
+            );
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Test
     @DisplayName("When food with same hash exists, should return existing DTO")
-    void save_whenSameHashExists_shouldReturnExistingDto() {
+    void createProductWithImages_whenSameHashExists_shouldReturnExistingDto() {
         // Given
         when(nutrimentsMapper.toModel(any())).thenReturn(new Nutriments());
         when(foodRepository.findByDataHash(anyString())).thenReturn(Optional.of(new Food()));
         when(foodMapper.toDto(any())).thenReturn(new FoodResponseDto());
 
         // When
-        FoodResponseDto result = foodService.save(new FoodRequestDto());
+        FoodResponseDto result = foodService.createProductWithImages(
+                new FoodRequestDto(), image, 1L);
 
         // Then
         assertNotNull(result);
@@ -123,14 +151,14 @@ class FoodServiceImplTest {
 
     @Test
     @DisplayName("When food with same code and fields exists, should return existing DTO")
-    void save_whenSameCodeExists_shouldReturnExistingDto() {
+    void createProductWithImages_whenSameCodeExists_shouldReturnExistingDto() {
         // Given
         when(nutrimentsMapper.toModel(any())).thenReturn(nutriments);
         when(foodRepository.findById(any())).thenReturn(Optional.of(food));
         when(foodMapper.toDto(any())).thenReturn(new FoodResponseDto());
 
         // When
-        FoodResponseDto result = foodService.save(foodRequestDto);
+        FoodResponseDto result = foodService.createProductWithImages(foodRequestDto, image, 1L);
 
         // Then
         assertNotNull(result);
@@ -141,7 +169,7 @@ class FoodServiceImplTest {
 
     @Test
     @DisplayName("When food do not exist, should save and return DTO")
-    void save_whenFoodDoNotExist_shouldSaveAndReturnDto() {
+    void save_whenFoodDoNotExist_shouldCreateProductWithImagesAndReturnDto() {
         // Given
         foodRequestDto.setCode(null);
 
@@ -152,7 +180,7 @@ class FoodServiceImplTest {
         when(foodMapper.toDto(any())).thenReturn(new FoodResponseDto());
 
         // When
-        FoodResponseDto result = foodService.save(foodRequestDto);
+        FoodResponseDto result = foodService.createProductWithImages(foodRequestDto, image, 1L);
 
         // Then
         assertNotNull(result);
@@ -164,7 +192,7 @@ class FoodServiceImplTest {
     @Test
     @DisplayName("When food with same code exists but different data,"
             + " should throw ConflictException")
-    void save_whenFoodWithSameCodeExistsButDifferentData_shouldThrowConflictException() {
+    void createProductWithImages_whenSameCodeExistsButDifferentData_shouldThrowException() {
         // Given
         Food differentFood = new Food();
         differentFood.setProductName("new_product_name");
@@ -174,7 +202,7 @@ class FoodServiceImplTest {
 
         // When
         ConflictException conflictException = assertThrows(ConflictException.class,
-                () -> foodService.save(foodRequestDto));
+                () -> foodService.createProductWithImages(foodRequestDto, image, 1L));
 
         // Then
         String expected = "Product with this code already exists with different data";
@@ -183,7 +211,7 @@ class FoodServiceImplTest {
 
     @Test
     @DisplayName("When DuplicateKeyException occurs max times, should throw ConflictException")
-    void save_whenDuplicateKeyExceptionOccursMaxTimes_shouldThrowConflictException() {
+    void createProductWithImages_whenDuplicateKeyExceptionMaxTimes_shouldThrowException() {
         // Given
         foodRequestDto.setCode(null);
 
@@ -194,7 +222,7 @@ class FoodServiceImplTest {
 
         // When
         ConflictException conflictException = assertThrows(ConflictException.class,
-                () -> foodService.save(foodRequestDto));
+                () -> foodService.createProductWithImages(foodRequestDto, image, 1L));
 
         // Then
         String expected = "Duplicate key error after max retries";
@@ -203,7 +231,7 @@ class FoodServiceImplTest {
 
     @Test
     @DisplayName("When DataIntegrityViolation occurs, should throw BadRequestException")
-    void save_whenDataIntegrityViolationOccurs_shouldThrowBadRequestException() {
+    void createProductWithImages_whenDataIntegrityViolationOccurs_shouldThrowBadRequestException() {
         // Given
         foodRequestDto.setCode(null);
 
@@ -214,7 +242,8 @@ class FoodServiceImplTest {
 
         // When
         BadRequestException badRequestException = assertThrows(
-                BadRequestException.class, () -> foodService.save(foodRequestDto)
+                BadRequestException.class,
+                () -> foodService.createProductWithImages(foodRequestDto, image, 1L)
         );
 
         // Then

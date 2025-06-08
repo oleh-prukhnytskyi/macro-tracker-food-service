@@ -21,7 +21,10 @@ import com.olehprukhnytskyi.macrotrackerfoodservice.repository.FoodRepository;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.CounterService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.FoodService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.GeminiService;
+import com.olehprukhnytskyi.macrotrackerfoodservice.service.S3StorageService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.util.HashUtils;
+import com.olehprukhnytskyi.macrotrackerfoodservice.util.ImageUtils;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -32,6 +35,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -43,10 +47,13 @@ public class FoodServiceImpl implements FoodService {
     private final CounterService counterService;
     private final GeminiService geminiService;
     private final FoodMapper foodMapper;
+    private final S3StorageService s3StorageService;
 
     @Transactional
     @Override
-    public FoodResponseDto save(FoodRequestDto dto) {
+    public FoodResponseDto createProductWithImages(FoodRequestDto dto,
+                                                   MultipartFile image, Long userId) {
+        ImageUtils.validateImage(image);
         try {
             if (dto.getCode() != null) {
                 Optional<Food> existing = foodRepository.findById(dto.getCode());
@@ -65,9 +72,16 @@ public class FoodServiceImpl implements FoodService {
                 return foodMapper.toDto(duplicate.get());
             }
 
-            int attempts = 0;
-            Food food = createNewFood(dto, dataHash);
+            Food food = createNewFood(dto, dataHash, userId);
 
+            int imageWidth = 400;
+            ByteArrayInputStream resizedStream = ImageUtils.resizeImage(image, imageWidth);
+            String imageKey = ImageUtils.generateImageKey(image, food.getId(), imageWidth);
+            String imageUrl = s3StorageService.uploadFile(resizedStream,
+                    resizedStream.available(), imageKey, image.getContentType());
+            food.setImageUrl(imageUrl);
+
+            int attempts = 0;
             while (attempts < MAX_RETRIES) {
                 try {
                     Food saved = foodRepository.save(food);
@@ -220,7 +234,14 @@ public class FoodServiceImpl implements FoodService {
         }
     }
 
-    private Food createNewFood(FoodRequestDto request, String dataHash) {
+    @Transactional
+    @Override
+    public void deleteByIdAndUserId(String id, Long userId) {
+        foodRepository.deleteByIdAndUserId(id, userId);
+        s3StorageService.deleteFolder("images/products/" + id + "/");
+    }
+
+    private Food createNewFood(FoodRequestDto request, String dataHash, Long userId) {
         Food food = foodMapper.toModel(request);
         food.setDataHash(dataHash);
 
@@ -228,6 +249,7 @@ public class FoodServiceImpl implements FoodService {
                 ? request.getCode()
                 : generateInternalCode();
 
+        food.setUserId(userId);
         food.setKeywords(geminiService.generateKeywords(food));
         food.setId(code);
         food.setCode(code);
@@ -252,8 +274,6 @@ public class FoodServiceImpl implements FoodService {
     }
 
     private String generateDataHash(FoodRequestDto request) {
-        System.out.println(request);
-
         String uniqueData = request.getProductName()
                 + request.getBrands()
                 + request.getGenericName()

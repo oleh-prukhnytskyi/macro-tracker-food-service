@@ -2,11 +2,12 @@ package com.olehprukhnytskyi.macrotrackerfoodservice.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -21,6 +22,8 @@ import com.olehprukhnytskyi.macrotrackerfoodservice.dto.NutrimentsPatchDto;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.PagedResponse;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.Pagination;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.FoodService;
+import com.olehprukhnytskyi.macrotrackerfoodservice.service.S3StorageService;
+import com.olehprukhnytskyi.macrotrackerfoodservice.util.CustomHeaders;
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
@@ -31,17 +34,23 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import software.amazon.awssdk.services.s3.S3Client;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class FoodControllerTest {
     protected static MockMvc mockMvc;
     @MockitoBean
     private FoodService foodService;
+    @MockitoBean
+    private S3Client s3Client;
+    @MockitoBean
+    private S3StorageService s3StorageService;
     @Autowired
     private ObjectMapper objectMapper;
 
@@ -237,15 +246,33 @@ class FoodControllerTest {
     @DisplayName("When request is valid, should return 201 Created and saved FoodResponseDto")
     void save_whenRequestIsValid_shouldReturnCreated() throws Exception {
         // Given
-        String requestJson = objectMapper.writeValueAsString(foodRequestDto);
+        String foodJson = objectMapper.writeValueAsString(foodRequestDto);
         String expected = objectMapper.writeValueAsString(foodResponseDto);
 
-        when(foodService.save(any())).thenReturn(foodResponseDto);
+        MockMultipartFile foodPart = new MockMultipartFile(
+                "food",
+                "food.json",
+                MediaType.APPLICATION_JSON_VALUE,
+                foodJson.getBytes()
+        );
+
+        MockMultipartFile imagePart = new MockMultipartFile(
+                "image",
+                "image.jpg",
+                MediaType.IMAGE_JPEG_VALUE,
+                "image-content".getBytes()
+        );
+
+        when(foodService.createProductWithImages(any(), any(), anyLong()))
+                .thenReturn(foodResponseDto);
 
         // When
-        MvcResult mvcResult = mockMvc.perform(post("/api/foods")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestJson))
+        MvcResult mvcResult = mockMvc.perform(multipart("/api/foods")
+                        .file(foodPart)
+                        .file(imagePart)
+                        .header(CustomHeaders.X_USER_ID, 1L)
+                        .contentType(MediaType.MULTIPART_FORM_DATA)
+                        .content(foodJson))
                 .andExpect(status().isCreated())
                 .andReturn();
 
@@ -258,16 +285,32 @@ class FoodControllerTest {
     void save_whenValidationError_shouldReturnBadRequest() throws Exception {
         // Given
         foodRequestDto.setProductName(null);
+        String foodJson = objectMapper.writeValueAsString(foodRequestDto);
 
-        String requestJson = objectMapper.writeValueAsString(foodRequestDto);
+        MockMultipartFile foodPart = new MockMultipartFile(
+                "food",
+                "food.json",
+                MediaType.APPLICATION_JSON_VALUE,
+                foodJson.getBytes()
+        );
+
+        MockMultipartFile imagePart = new MockMultipartFile(
+                "image",
+                "image.jpg",
+                MediaType.IMAGE_JPEG_VALUE,
+                "fake".getBytes()
+        );
+
         ApiResponse<?> response = ApiResponse.error(
                 new ApiError("productName", "must not be null"));
         String expected = objectMapper.writeValueAsString(response);
 
         // When
-        MvcResult mvcResult = mockMvc.perform(post("/api/foods")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestJson))
+        MvcResult mvcResult = mockMvc.perform(multipart("/api/foods")
+                        .file(foodPart)
+                        .file(imagePart)
+                        .header(CustomHeaders.X_USER_ID, 1L)
+                        .contentType(MediaType.MULTIPART_FORM_DATA))
                 .andExpect(status().isBadRequest())
                 .andReturn();
 
