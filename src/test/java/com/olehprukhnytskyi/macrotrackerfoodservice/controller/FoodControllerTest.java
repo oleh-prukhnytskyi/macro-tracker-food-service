@@ -22,6 +22,7 @@ import com.olehprukhnytskyi.macrotrackerfoodservice.dto.NutrimentsPatchDto;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.PagedResponse;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.Pagination;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.FoodService;
+import com.olehprukhnytskyi.macrotrackerfoodservice.service.RequestDeduplicationService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.S3StorageService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.util.CustomHeaders;
 import java.math.BigDecimal;
@@ -51,6 +52,8 @@ class FoodControllerTest {
     private S3Client s3Client;
     @MockitoBean
     private S3StorageService s3StorageService;
+    @MockitoBean
+    private RequestDeduplicationService requestDeduplicationService;
     @Autowired
     private ObjectMapper objectMapper;
 
@@ -263,7 +266,7 @@ class FoodControllerTest {
                 "image-content".getBytes()
         );
 
-        when(foodService.createProductWithImages(any(), any(), anyLong()))
+        when(foodService.createFoodWithImages(any(), any(), anyLong()))
                 .thenReturn(foodResponseDto);
 
         // When
@@ -271,8 +274,8 @@ class FoodControllerTest {
                         .file(foodPart)
                         .file(imagePart)
                         .header(CustomHeaders.X_USER_ID, 1L)
-                        .contentType(MediaType.MULTIPART_FORM_DATA)
-                        .content(foodJson))
+                        .header(CustomHeaders.X_REQUEST_ID, "requestId")
+                        .contentType(MediaType.MULTIPART_FORM_DATA))
                 .andExpect(status().isCreated())
                 .andReturn();
 

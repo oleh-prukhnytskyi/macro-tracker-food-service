@@ -39,11 +39,6 @@ public class Food {
 
     private Nutriments nutriments;
 
-    @Field(name = "data_hash")
-    @JsonProperty("data_hash")
-    @Indexed(unique = true)
-    private String dataHash;
-
     @Indexed
     @Field(name = "user_id")
     @JsonProperty("user_id")

@@ -7,7 +7,7 @@ import java.util.List;
 import org.springframework.web.multipart.MultipartFile;
 
 public interface FoodService {
-    FoodResponseDto createProductWithImages(FoodRequestDto dto, MultipartFile image, Long userId);
+    FoodResponseDto createFoodWithImages(FoodRequestDto dto, MultipartFile image, Long userId);
 
     List<FoodResponseDto> findByQuery(String query, int offset, int limit);
 

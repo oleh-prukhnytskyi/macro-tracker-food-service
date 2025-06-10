@@ -6,7 +6,9 @@ import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodResponseDto;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.PagedResponse;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.Pagination;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.FoodService;
+import com.olehprukhnytskyi.macrotrackerfoodservice.service.RequestDeduplicationService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.util.CustomHeaders;
+import com.olehprukhnytskyi.macrotrackerfoodservice.util.ProcessedEntityType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import java.util.List;
@@ -34,6 +36,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/foods")
 public class FoodController {
     private final FoodService foodService;
+    private final RequestDeduplicationService requestDeduplicationService;
 
     @GetMapping("/{id}")
     public ResponseEntity<FoodResponseDto> findById(
@@ -67,9 +70,24 @@ public class FoodController {
     public ResponseEntity<FoodResponseDto> save(
             @RequestPart("food") @Valid FoodRequestDto requestDto,
             @RequestPart("image") MultipartFile image,
-            @RequestHeader(CustomHeaders.X_USER_ID) Long userId) {
-        FoodResponseDto saved = foodService.createProductWithImages(
+            @RequestHeader(CustomHeaders.X_USER_ID) Long userId,
+            @RequestHeader(CustomHeaders.X_REQUEST_ID) String requestId) {
+        if (requestDeduplicationService.isProcessed(
+                ProcessedEntityType.FOOD, requestId, userId)) {
+            return requestDeduplicationService
+                    .getProcessed(
+                            ProcessedEntityType.FOOD,
+                            requestId,
+                            userId,
+                            FoodResponseDto.class
+                    )
+                    .map(ResponseEntity::ok)
+                    .orElse(ResponseEntity.status(HttpStatus.CONFLICT).build());
+        }
+        FoodResponseDto saved = foodService.createFoodWithImages(
                 requestDto, image, userId);
+        requestDeduplicationService.markAsProcessed(
+                ProcessedEntityType.FOOD, requestId, userId, saved);
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(saved);

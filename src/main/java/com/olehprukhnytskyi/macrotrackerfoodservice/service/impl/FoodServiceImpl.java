@@ -41,6 +41,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class FoodServiceImpl implements FoodService {
     private static final int MAX_RETRIES = 3;
+    private static final int FOOD_IMAGE_SIZE = 400;
     private final ElasticsearchClient elasticsearchClient;
     private final NutrimentsMapper nutrimentsMapper;
     private final FoodRepository foodRepository;
@@ -51,8 +52,8 @@ public class FoodServiceImpl implements FoodService {
 
     @Transactional
     @Override
-    public FoodResponseDto createProductWithImages(FoodRequestDto dto,
-                                                   MultipartFile image, Long userId) {
+    public FoodResponseDto createFoodWithImages(FoodRequestDto dto,
+                                                MultipartFile image, Long userId) {
         ImageUtils.validateImage(image);
         try {
             if (dto.getCode() != null) {
@@ -66,17 +67,10 @@ public class FoodServiceImpl implements FoodService {
                 }
             }
 
-            String dataHash = generateDataHash(dto);
-            Optional<Food> duplicate = foodRepository.findByDataHash(dataHash);
-            if (duplicate.isPresent()) {
-                return foodMapper.toDto(duplicate.get());
-            }
+            Food food = createNewFood(dto, userId);
 
-            Food food = createNewFood(dto, dataHash, userId);
-
-            int imageWidth = 400;
-            ByteArrayInputStream resizedStream = ImageUtils.resizeImage(image, imageWidth);
-            String imageKey = ImageUtils.generateImageKey(image, food.getId(), imageWidth);
+            ByteArrayInputStream resizedStream = ImageUtils.resizeImage(image, FOOD_IMAGE_SIZE);
+            String imageKey = ImageUtils.generateImageKey(image, food.getId(), FOOD_IMAGE_SIZE);
             String imageUrl = s3StorageService.uploadFile(resizedStream,
                     resizedStream.available(), imageKey, image.getContentType());
             food.setImageUrl(imageUrl);
@@ -241,14 +235,11 @@ public class FoodServiceImpl implements FoodService {
         s3StorageService.deleteFolder("images/products/" + id + "/");
     }
 
-    private Food createNewFood(FoodRequestDto request, String dataHash, Long userId) {
+    private Food createNewFood(FoodRequestDto request, Long userId) {
         Food food = foodMapper.toModel(request);
-        food.setDataHash(dataHash);
-
         String code = request.getCode() != null && isValidCode(request.getCode())
                 ? request.getCode()
                 : generateInternalCode();
-
         food.setUserId(userId);
         food.setKeywords(geminiService.generateKeywords(food));
         food.setId(code);

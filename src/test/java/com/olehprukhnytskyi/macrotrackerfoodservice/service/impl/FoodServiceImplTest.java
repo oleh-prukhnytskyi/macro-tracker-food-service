@@ -130,69 +130,44 @@ class FoodServiceImplTest {
     }
 
     @Test
-    @DisplayName("When food with same hash exists, should return existing DTO")
-    void createProductWithImages_whenSameHashExists_shouldReturnExistingDto() {
-        // Given
-        when(nutrimentsMapper.toModel(any())).thenReturn(new Nutriments());
-        when(foodRepository.findByDataHash(anyString())).thenReturn(Optional.of(new Food()));
-        when(foodMapper.toDto(any())).thenReturn(new FoodResponseDto());
-
-        // When
-        FoodResponseDto result = foodService.createProductWithImages(
-                new FoodRequestDto(), image, 1L);
-
-        // Then
-        assertNotNull(result);
-        verify(foodRepository).findByDataHash(anyString());
-        verify(foodRepository, never()).save(any());
-        verify(foodRepository, never()).findById(anyString());
-        verify(foodMapper).toDto(any());
-    }
-
-    @Test
     @DisplayName("When food with same code and fields exists, should return existing DTO")
-    void createProductWithImages_whenSameCodeExists_shouldReturnExistingDto() {
+    void createFoodWithImages_whenSameCodeExists_shouldReturnExistingDto() {
         // Given
         when(nutrimentsMapper.toModel(any())).thenReturn(nutriments);
         when(foodRepository.findById(any())).thenReturn(Optional.of(food));
         when(foodMapper.toDto(any())).thenReturn(new FoodResponseDto());
 
         // When
-        FoodResponseDto result = foodService.createProductWithImages(foodRequestDto, image, 1L);
+        FoodResponseDto result = foodService.createFoodWithImages(foodRequestDto, image, 1L);
 
         // Then
         assertNotNull(result);
         verify(foodRepository, times(1)).findById(anyString());
-        verify(foodRepository, never()).findByDataHash(anyString());
         verify(foodRepository, never()).save(any());
     }
 
     @Test
     @DisplayName("When food do not exist, should save and return DTO")
-    void save_whenFoodDoNotExist_shouldCreateProductWithImagesAndReturnDto() {
+    void save_whenFoodDoNotExist_shouldCreateFoodWithImagesAndReturnDto() {
         // Given
         foodRequestDto.setCode(null);
 
-        when(nutriments.toString()).thenReturn("nutriments");
-        when(nutrimentsMapper.toModel(any())).thenReturn(nutriments);
-        when(foodRepository.findByDataHash(anyString())).thenReturn(Optional.empty());
         when(foodMapper.toModel(any())).thenReturn(food);
         when(foodMapper.toDto(any())).thenReturn(new FoodResponseDto());
 
         // When
-        FoodResponseDto result = foodService.createProductWithImages(foodRequestDto, image, 1L);
+        FoodResponseDto result = foodService.createFoodWithImages(foodRequestDto, image, 1L);
 
         // Then
         assertNotNull(result);
         verify(foodRepository, never()).findById(anyString());
-        verify(foodRepository, times(1)).findByDataHash(anyString());
         verify(foodRepository, times(1)).save(any());
     }
 
     @Test
     @DisplayName("When food with same code exists but different data,"
             + " should throw ConflictException")
-    void createProductWithImages_whenSameCodeExistsButDifferentData_shouldThrowException() {
+    void createFoodWithImages_whenSameCodeExistsButDifferentData_shouldThrowException() {
         // Given
         Food differentFood = new Food();
         differentFood.setProductName("new_product_name");
@@ -202,7 +177,7 @@ class FoodServiceImplTest {
 
         // When
         ConflictException conflictException = assertThrows(ConflictException.class,
-                () -> foodService.createProductWithImages(foodRequestDto, image, 1L));
+                () -> foodService.createFoodWithImages(foodRequestDto, image, 1L));
 
         // Then
         String expected = "Product with this code already exists with different data";
@@ -211,18 +186,16 @@ class FoodServiceImplTest {
 
     @Test
     @DisplayName("When DuplicateKeyException occurs max times, should throw ConflictException")
-    void createProductWithImages_whenDuplicateKeyExceptionMaxTimes_shouldThrowException() {
+    void createFoodWithImages_whenDuplicateKeyExceptionMaxTimes_shouldThrowException() {
         // Given
         foodRequestDto.setCode(null);
 
-        when(foodRepository.findByDataHash(anyString())).thenReturn(Optional.empty());
         when(foodRepository.save(any())).thenThrow(DuplicateKeyException.class);
-        when(nutrimentsMapper.toModel(any())).thenReturn(nutriments);
         when(foodMapper.toModel(any())).thenReturn(food);
 
         // When
         ConflictException conflictException = assertThrows(ConflictException.class,
-                () -> foodService.createProductWithImages(foodRequestDto, image, 1L));
+                () -> foodService.createFoodWithImages(foodRequestDto, image, 1L));
 
         // Then
         String expected = "Duplicate key error after max retries";
@@ -231,19 +204,17 @@ class FoodServiceImplTest {
 
     @Test
     @DisplayName("When DataIntegrityViolation occurs, should throw BadRequestException")
-    void createProductWithImages_whenDataIntegrityViolationOccurs_shouldThrowBadRequestException() {
+    void createFoodWithImages_whenDataIntegrityViolationOccurs_shouldThrowBadRequestException() {
         // Given
         foodRequestDto.setCode(null);
 
-        when(foodRepository.findByDataHash(anyString())).thenReturn(Optional.empty());
         when(foodRepository.save(any())).thenThrow(DataIntegrityViolationException.class);
-        when(nutrimentsMapper.toModel(any())).thenReturn(nutriments);
         when(foodMapper.toModel(any())).thenReturn(food);
 
         // When
         BadRequestException badRequestException = assertThrows(
                 BadRequestException.class,
-                () -> foodService.createProductWithImages(foodRequestDto, image, 1L)
+                () -> foodService.createFoodWithImages(foodRequestDto, image, 1L)
         );
 
         // Then

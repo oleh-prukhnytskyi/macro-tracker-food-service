@@ -17,7 +17,6 @@ public interface FoodMapper {
     @Mappings({
             @Mapping(target = "id", ignore = true),
             @Mapping(target = "keywords", ignore = true),
-            @Mapping(target = "dataHash", ignore = true),
             @Mapping(target = "userId", ignore = true)
     })
     Food toModel(FoodRequestDto requestDto);
@@ -27,7 +26,6 @@ public interface FoodMapper {
     @Mappings({
             @Mapping(target = "id", ignore = true),
             @Mapping(target = "keywords", ignore = true),
-            @Mapping(target = "dataHash", ignore = true),
             @Mapping(target = "code", ignore = true),
             @Mapping(target = "userId", ignore = true)
     })
