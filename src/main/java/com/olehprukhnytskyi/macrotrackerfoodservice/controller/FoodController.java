@@ -69,7 +69,7 @@ public class FoodController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<FoodResponseDto> save(
             @RequestPart("food") @Valid FoodRequestDto requestDto,
-            @RequestPart("image") MultipartFile image,
+            @RequestPart(value = "image", required = false) MultipartFile image,
             @RequestHeader(CustomHeaders.X_USER_ID) Long userId,
             @RequestHeader(CustomHeaders.X_REQUEST_ID) String requestId) {
         if (requestDeduplicationService.isProcessed(

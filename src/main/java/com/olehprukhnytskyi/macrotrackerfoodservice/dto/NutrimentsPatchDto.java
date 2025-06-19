@@ -17,4 +17,16 @@ public class NutrimentsPatchDto {
 
     @DecimalMin(value = "0.0")
     private BigDecimal carbohydrates;
+
+    @DecimalMin(value = "0.0")
+    private BigDecimal kcalPerPiece;
+
+    @DecimalMin(value = "0.0")
+    private BigDecimal fatPerPiece;
+
+    @DecimalMin(value = "0.0")
+    private BigDecimal proteinsPerPiece;
+
+    @DecimalMin(value = "0.0")
+    private BigDecimal carbohydratesPerPiece;
 }

@@ -54,7 +54,6 @@ public class FoodServiceImpl implements FoodService {
     @Override
     public FoodResponseDto createFoodWithImages(FoodRequestDto dto,
                                                 MultipartFile image, Long userId) {
-        ImageUtils.validateImage(image);
         try {
             if (dto.getCode() != null) {
                 Optional<Food> existing = foodRepository.findById(dto.getCode());
@@ -69,11 +68,14 @@ public class FoodServiceImpl implements FoodService {
 
             Food food = createNewFood(dto, userId);
 
-            ByteArrayInputStream resizedStream = ImageUtils.resizeImage(image, FOOD_IMAGE_SIZE);
-            String imageKey = ImageUtils.generateImageKey(image, food.getId(), FOOD_IMAGE_SIZE);
-            String imageUrl = s3StorageService.uploadFile(resizedStream,
-                    resizedStream.available(), imageKey, image.getContentType());
-            food.setImageUrl(imageUrl);
+            if (image != null) {
+                ImageUtils.validateImage(image);
+                ByteArrayInputStream resizedStream = ImageUtils.resizeImage(image, FOOD_IMAGE_SIZE);
+                String imageKey = ImageUtils.generateImageKey(image, food.getId(), FOOD_IMAGE_SIZE);
+                String imageUrl = s3StorageService.uploadFile(resizedStream,
+                        resizedStream.available(), imageKey, image.getContentType());
+                food.setImageUrl(imageUrl);
+            }
 
             int attempts = 0;
             while (attempts < MAX_RETRIES) {

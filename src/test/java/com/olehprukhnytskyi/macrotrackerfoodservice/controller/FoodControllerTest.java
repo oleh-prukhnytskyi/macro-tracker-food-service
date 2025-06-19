@@ -80,7 +80,6 @@ class FoodControllerTest {
         foodRequestDto.setProductName("Product name");
         foodRequestDto.setGenericName("Generic name");
         foodRequestDto.setBrands("Brands");
-        foodRequestDto.setImageUrl("https://image.url");
         foodRequestDto.setNutriments(nutrimentsDto);
 
         foodResponseDto = new FoodResponseDto();

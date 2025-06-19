@@ -4,7 +4,6 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
-import org.hibernate.validator.constraints.URL;
 
 @Data
 public class FoodRequestDto {
@@ -18,10 +17,6 @@ public class FoodRequestDto {
 
     @Size(max = 100)
     private String genericName;
-
-    @URL
-    @Size(max = 300)
-    private String imageUrl;
 
     @Size(max = 100)
     private String brands;
