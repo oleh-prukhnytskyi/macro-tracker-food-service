@@ -1,5 +1,6 @@
 package com.olehprukhnytskyi.macrotrackerfoodservice.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -21,6 +22,7 @@ public class FoodRequestDto {
     @Size(max = 100)
     private String brands;
 
+    @Valid
     @NotNull
     private NutrimentsDto nutriments;
 }
