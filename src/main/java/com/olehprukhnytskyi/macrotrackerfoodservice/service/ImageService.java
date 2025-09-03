@@ -1,4 +1,4 @@
-package com.olehprukhnytskyi.macrotrackerfoodservice.util;
+package com.olehprukhnytskyi.macrotrackerfoodservice.service;
 
 import com.olehprukhnytskyi.macrotrackerfoodservice.exception.BadRequestException;
 import java.awt.image.BufferedImage;
@@ -12,11 +12,11 @@ import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 import net.coobird.thumbnailator.Thumbnails;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-@Component
-public class ImageUtils {
+@Service
+public class ImageService {
     private static final long MAX_FILE_SIZE = 5 * 1024 * 1024;
     private static final List<String> ALLOWED_CONTENT_TYPES = List.of(
             "image/jpeg",
@@ -24,7 +24,7 @@ public class ImageUtils {
             "image/webp"
     );
 
-    public static void validateImage(MultipartFile image) {
+    public void validateImage(MultipartFile image) {
         if (image.isEmpty()) {
             throw new BadRequestException("Empty file uploaded");
         }
@@ -36,7 +36,7 @@ public class ImageUtils {
         }
     }
 
-    public static ByteArrayInputStream resizeImage(MultipartFile file, int size) {
+    public ByteArrayInputStream resizeImage(MultipartFile file, int size) {
         try {
             BufferedImage resizedImage = Thumbnails.of(ImageIO.read(file.getInputStream()))
                     .width(size)
@@ -50,7 +50,7 @@ public class ImageUtils {
         }
     }
 
-    public static String detectImageFormat(MultipartFile file) {
+    public String detectImageFormat(MultipartFile file) {
         try (InputStream is = file.getInputStream()) {
             ImageInputStream iis = ImageIO.createImageInputStream(is);
             Iterator<ImageReader> readers = ImageIO.getImageReaders(iis);
@@ -65,7 +65,7 @@ public class ImageUtils {
         }
     }
 
-    public static String generateImageKey(MultipartFile file, String foodId, int imageWidth) {
+    public String generateImageKey(MultipartFile file, String foodId, int imageWidth) {
         String format = detectImageFormat(file);
         return "images/products/" + foodId + "/" + imageWidth + "." + format;
     }

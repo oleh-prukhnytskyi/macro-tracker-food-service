@@ -12,7 +12,7 @@ import org.mapstruct.MappingTarget;
 import org.mapstruct.Mappings;
 import org.mapstruct.NullValuePropertyMappingStrategy;
 
-@Mapper(config = MapperConfig.class)
+@Mapper(config = MapperConfig.class, uses = {NutrimentsMapper.class})
 public interface FoodMapper {
     @Mappings({
             @Mapping(target = "id", ignore = true),

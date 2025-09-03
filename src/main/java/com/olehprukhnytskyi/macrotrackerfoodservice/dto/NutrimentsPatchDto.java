@@ -2,9 +2,15 @@ package com.olehprukhnytskyi.macrotrackerfoodservice.dto;
 
 import jakarta.validation.constraints.DecimalMin;
 import java.math.BigDecimal;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class NutrimentsPatchDto {
     @DecimalMin(value = "0.0")
     private BigDecimal kcal;

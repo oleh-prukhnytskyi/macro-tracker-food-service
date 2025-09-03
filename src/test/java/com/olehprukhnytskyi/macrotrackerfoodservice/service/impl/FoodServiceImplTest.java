@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.BDDMockito.anyString;
 import static org.mockito.BDDMockito.eq;
 import static org.mockito.BDDMockito.mock;
@@ -36,8 +37,10 @@ import com.olehprukhnytskyi.macrotrackerfoodservice.model.Nutriments;
 import com.olehprukhnytskyi.macrotrackerfoodservice.repository.FoodRepository;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.CounterService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.GeminiService;
+import com.olehprukhnytskyi.macrotrackerfoodservice.service.ImageService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.S3StorageService;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -74,6 +77,8 @@ class FoodServiceImplTest {
     private NutrimentsMapper nutrimentsMapper;
     @Mock
     private FoodMapper foodMapper;
+    @Mock
+    private ImageService imageService;
     @MockitoBean
     private S3Client s3Client;
     @Mock
@@ -154,6 +159,10 @@ class FoodServiceImplTest {
 
         when(foodMapper.toModel(any())).thenReturn(food);
         when(foodMapper.toDto(any())).thenReturn(new FoodResponseDto());
+        when(imageService.resizeImage(any(), anyInt()))
+                .thenReturn(new ByteArrayInputStream("fake".getBytes()));
+        when(imageService.generateImageKey(any(), anyString(), anyInt()))
+                .thenReturn("images/products/test.png");
 
         // When
         FoodResponseDto result = foodService.createFoodWithImages(foodRequestDto, image, 1L);
@@ -192,6 +201,10 @@ class FoodServiceImplTest {
 
         when(foodRepository.save(any())).thenThrow(DuplicateKeyException.class);
         when(foodMapper.toModel(any())).thenReturn(food);
+        when(imageService.resizeImage(any(), anyInt()))
+                .thenReturn(new ByteArrayInputStream("fake".getBytes()));
+        when(imageService.generateImageKey(any(), anyString(), anyInt()))
+                .thenReturn("images/products/test.png");
 
         // When
         ConflictException conflictException = assertThrows(ConflictException.class,
@@ -210,6 +223,10 @@ class FoodServiceImplTest {
 
         when(foodRepository.save(any())).thenThrow(DataIntegrityViolationException.class);
         when(foodMapper.toModel(any())).thenReturn(food);
+        when(imageService.resizeImage(any(), anyInt()))
+                .thenReturn(new ByteArrayInputStream("fake".getBytes()));
+        when(imageService.generateImageKey(any(), anyString(), anyInt()))
+                .thenReturn("images/products/test.png");
 
         // When
         BadRequestException badRequestException = assertThrows(

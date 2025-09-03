@@ -21,9 +21,8 @@ import com.olehprukhnytskyi.macrotrackerfoodservice.repository.FoodRepository;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.CounterService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.FoodService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.GeminiService;
+import com.olehprukhnytskyi.macrotrackerfoodservice.service.ImageService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.S3StorageService;
-import com.olehprukhnytskyi.macrotrackerfoodservice.util.HashUtils;
-import com.olehprukhnytskyi.macrotrackerfoodservice.util.ImageUtils;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Collections;
@@ -49,6 +48,7 @@ public class FoodServiceImpl implements FoodService {
     private final GeminiService geminiService;
     private final FoodMapper foodMapper;
     private final S3StorageService s3StorageService;
+    private final ImageService imageService;
 
     @Transactional
     @Override
@@ -69,9 +69,11 @@ public class FoodServiceImpl implements FoodService {
             Food food = createNewFood(dto, userId);
 
             if (image != null) {
-                ImageUtils.validateImage(image);
-                ByteArrayInputStream resizedStream = ImageUtils.resizeImage(image, FOOD_IMAGE_SIZE);
-                String imageKey = ImageUtils.generateImageKey(image, food.getId(), FOOD_IMAGE_SIZE);
+                imageService.validateImage(image);
+                ByteArrayInputStream resizedStream = imageService
+                        .resizeImage(image, FOOD_IMAGE_SIZE);
+                String imageKey = imageService
+                        .generateImageKey(image, food.getId(), FOOD_IMAGE_SIZE);
                 String imageUrl = s3StorageService.uploadFile(resizedStream,
                         resizedStream.available(), imageKey, image.getContentType());
                 food.setImageUrl(imageUrl);
@@ -264,14 +266,6 @@ public class FoodServiceImpl implements FoodService {
                 && existingFood.getGenericName().equals(newRequest.getGenericName())
                 && existingFood.getNutriments().equals(
                         nutrimentsMapper.toModel(newRequest.getNutriments()));
-    }
-
-    private String generateDataHash(FoodRequestDto request) {
-        String uniqueData = request.getProductName()
-                + request.getBrands()
-                + request.getGenericName()
-                + nutrimentsMapper.toModel(request.getNutriments()).toString();
-        return HashUtils.generateSha256Hash(uniqueData);
     }
 
     private void processBarcode(BoolQuery.Builder b, String tokenNoZeros) {
