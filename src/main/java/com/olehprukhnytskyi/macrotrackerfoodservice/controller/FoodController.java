@@ -50,7 +50,7 @@ public class FoodController {
             @RequestParam String query,
             @RequestParam(defaultValue = "0") @Min(0) int offset,
             @RequestParam(defaultValue = "25") @Min(1) int limit) {
-        List<FoodResponseDto> foods = foodService.findByQuery(query, offset, limit);
+        List<FoodResponseDto> foods = foodService.findByQuery(query, offset, limit).getItems();
         Pagination pagination = new Pagination(offset, limit, foods.size());
         return ResponseEntity
                 .status(foods.isEmpty() ? HttpStatus.NO_CONTENT : HttpStatus.OK)

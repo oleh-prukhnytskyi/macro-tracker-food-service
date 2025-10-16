@@ -6,6 +6,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import com.mongodb.DuplicateKeyException;
+import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodListCacheWrapper;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodPatchRequestDto;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodRequestDto;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodResponseDto;
@@ -31,6 +32,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -102,8 +105,14 @@ public class FoodServiceImpl implements FoodService {
         }
     }
 
+    @Cacheable(
+            value = "search:results",
+            key = "T(org.springframework.util.DigestUtils).md5DigestAsHex((#query"
+                    + ".trim().toLowerCase() + '-' + #offset + '-' + #limit).getBytes())",
+            unless = "#result == null || #result.items.isEmpty()"
+    )
     @Override
-    public List<FoodResponseDto> findByQuery(String query, int offset, int limit) {
+    public FoodListCacheWrapper findByQuery(String query, int offset, int limit) {
         if (query == null || query.trim().isEmpty()) {
             throw new BadRequestException("Query must not be null or empty");
         }
@@ -145,9 +154,9 @@ public class FoodServiceImpl implements FoodService {
             if (response == null
                     || response.hits() == null
                     || response.hits().hits() == null) {
-                return Collections.emptyList();
+                return new FoodListCacheWrapper();
             }
-            return response.hits().hits().stream()
+            return new FoodListCacheWrapper(response.hits().hits().stream()
                     .map(hit -> {
                         if (hit.source() == null) {
                             return null;
@@ -156,7 +165,7 @@ public class FoodServiceImpl implements FoodService {
                         return foodMapper.toDto(hit.source());
                     })
                     .filter(Objects::nonNull)
-                    .toList();
+                    .toList());
         } catch (IOException e) {
             throw new SearchServiceException("Failed to execute search request", e);
         } catch (Exception e) {
@@ -164,6 +173,7 @@ public class FoodServiceImpl implements FoodService {
         }
     }
 
+    @Cacheable(value = "food:data", key = "#id")
     @Override
     public FoodResponseDto findById(String id) {
         Food food = foodRepository.findById(id)
@@ -171,6 +181,12 @@ public class FoodServiceImpl implements FoodService {
         return foodMapper.toDto(food);
     }
 
+    @Cacheable(
+            value = "search:suggestions",
+            key = "T(org.springframework.util.DigestUtils)"
+                    + ".md5DigestAsHex(#query.trim().toLowerCase().getBytes())",
+            unless = "#result == null || #result.isEmpty()"
+    )
     @Override
     public List<String> getSearchSuggestions(String query) {
         if (query == null || query.trim().isEmpty()) {
@@ -217,6 +233,7 @@ public class FoodServiceImpl implements FoodService {
         }
     }
 
+    @CacheEvict(value = "food:data", key = "#id")
     @Override
     public FoodResponseDto patch(String id, FoodPatchRequestDto dto) {
         try {
@@ -232,6 +249,7 @@ public class FoodServiceImpl implements FoodService {
         }
     }
 
+    @CacheEvict(value = "food:data", key = "#id")
     @Transactional
     @Override
     public void deleteByIdAndUserId(String id, Long userId) {

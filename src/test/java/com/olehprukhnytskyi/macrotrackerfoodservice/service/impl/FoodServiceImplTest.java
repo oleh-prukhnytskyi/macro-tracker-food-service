@@ -2,6 +2,7 @@ package com.olehprukhnytskyi.macrotrackerfoodservice.service.impl;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -21,6 +22,7 @@ import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch.core.search.HitsMetadata;
 import co.elastic.clients.util.ObjectBuilder;
 import com.mongodb.DuplicateKeyException;
+import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodListCacheWrapper;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodPatchRequestDto;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodRequestDto;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodResponseDto;
@@ -285,7 +287,7 @@ class FoodServiceImplTest {
         when(foodMapper.toDto(food)).thenReturn(dto);
 
         // when
-        List<FoodResponseDto> result = foodService.findByQuery("apple juice", 0, 10);
+        List<FoodResponseDto> result = foodService.findByQuery("apple juice", 0, 10).getItems();
 
         // then
         assertEquals(1, result.size());
@@ -303,10 +305,10 @@ class FoodServiceImplTest {
         )).thenReturn(null);
 
         // When
-        List<FoodResponseDto> result = foodService.findByQuery("banana", 0, 10);
+        FoodListCacheWrapper result = foodService.findByQuery("banana", 0, 10);
 
         // Then
-        assertTrue(result.isEmpty());
+        assertNull(result.getItems());
     }
 
     @Test

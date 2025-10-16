@@ -24,7 +24,7 @@ import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.util.ObjectBuilder;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.olehprukhnytskyi.macrotrackerfoodservice.config.AbstractMongoTest;
+import com.olehprukhnytskyi.macrotrackerfoodservice.config.AbstractIntegrationTest;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.ApiError;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.ApiResponse;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodPatchRequestDto;
@@ -55,7 +55,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -66,8 +65,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import software.amazon.awssdk.services.s3.S3Client;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class FoodControllerTest extends AbstractMongoTest {
+class FoodControllerTest extends AbstractIntegrationTest {
     protected static MockMvc mockMvc;
 
     @Autowired
@@ -178,7 +176,11 @@ class FoodControllerTest extends AbstractMongoTest {
     void findById_whenFoodExist_shouldReturn200AndDto() throws Exception {
         // Given
         String foodId = "11111111";
-        FoodResponseDto foodDto = FoodResponseDto.builder().id(foodId).build();
+        FoodResponseDto foodDto = FoodResponseDto.builder()
+                .id(foodId)
+                .code(foodId)
+                .productName("Rice")
+                .build();
 
         when(foodService.findById(foodId)).thenReturn(foodDto);
 
