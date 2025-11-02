@@ -1,4 +1,4 @@
-package com.olehprukhnytskyi.macrotrackerfoodservice.repository;
+package com.olehprukhnytskyi.macrotrackerfoodservice.repository.mongo;
 
 import com.olehprukhnytskyi.macrotrackerfoodservice.model.Food;
 import org.springframework.data.mongodb.repository.MongoRepository;

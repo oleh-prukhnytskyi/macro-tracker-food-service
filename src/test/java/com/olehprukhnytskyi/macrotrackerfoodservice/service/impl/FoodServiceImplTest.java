@@ -36,7 +36,7 @@ import com.olehprukhnytskyi.macrotrackerfoodservice.mapper.FoodMapper;
 import com.olehprukhnytskyi.macrotrackerfoodservice.mapper.NutrimentsMapper;
 import com.olehprukhnytskyi.macrotrackerfoodservice.model.Food;
 import com.olehprukhnytskyi.macrotrackerfoodservice.model.Nutriments;
-import com.olehprukhnytskyi.macrotrackerfoodservice.repository.FoodRepository;
+import com.olehprukhnytskyi.macrotrackerfoodservice.repository.mongo.FoodRepository;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.CounterService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.GeminiService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.ImageService;

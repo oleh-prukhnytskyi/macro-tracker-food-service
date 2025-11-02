@@ -18,7 +18,9 @@ import com.olehprukhnytskyi.macrotrackerfoodservice.exception.SearchServiceExcep
 import com.olehprukhnytskyi.macrotrackerfoodservice.mapper.FoodMapper;
 import com.olehprukhnytskyi.macrotrackerfoodservice.mapper.NutrimentsMapper;
 import com.olehprukhnytskyi.macrotrackerfoodservice.model.Food;
-import com.olehprukhnytskyi.macrotrackerfoodservice.repository.FoodRepository;
+import com.olehprukhnytskyi.macrotrackerfoodservice.model.OutboxEvent;
+import com.olehprukhnytskyi.macrotrackerfoodservice.repository.jpa.OutboxRepository;
+import com.olehprukhnytskyi.macrotrackerfoodservice.repository.mongo.FoodRepository;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.CounterService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.FoodService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.GeminiService;
@@ -52,6 +54,7 @@ public class FoodServiceImpl implements FoodService {
     private final FoodMapper foodMapper;
     private final S3StorageService s3StorageService;
     private final ImageService imageService;
+    private final OutboxRepository outboxRepository;
 
     @Transactional
     @Override
@@ -254,7 +257,10 @@ public class FoodServiceImpl implements FoodService {
     @Override
     public void deleteByIdAndUserId(String id, Long userId) {
         foodRepository.deleteByIdAndUserId(id, userId);
-        s3StorageService.deleteFolder("images/products/" + id + "/");
+        outboxRepository.save(OutboxEvent.builder()
+                .aggregateType("FOOD")
+                .aggregateId(id)
+                .eventType("FOOD_DELETED").build());
     }
 
     private Food createNewFood(FoodRequestDto request, Long userId) {

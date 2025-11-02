@@ -35,20 +35,30 @@ public class S3StorageService {
     }
 
     public void deleteFolder(String prefix) {
-        ListObjectsV2Request listRequest = ListObjectsV2Request.builder()
-                .bucket(bucketName)
-                .prefix(prefix)
-                .build();
-        ListObjectsV2Response listResponse = s3Client.listObjectsV2(listRequest);
-        List<ObjectIdentifier> toDelete = listResponse.contents().stream()
-                .map(s3Object -> ObjectIdentifier.builder().key(s3Object.key()).build())
-                .toList();
-        if (!toDelete.isEmpty()) {
-            DeleteObjectsRequest deleteRequest = DeleteObjectsRequest.builder()
+        String continuationToken = null;
+
+        do {
+            ListObjectsV2Request listRequest = ListObjectsV2Request.builder()
                     .bucket(bucketName)
-                    .delete(Delete.builder().objects(toDelete).build())
+                    .prefix(prefix)
+                    .continuationToken(continuationToken)
                     .build();
-            s3Client.deleteObjects(deleteRequest);
-        }
+
+            ListObjectsV2Response listResponse = s3Client.listObjectsV2(listRequest);
+
+            List<ObjectIdentifier> toDelete = listResponse.contents().stream()
+                    .map(o -> ObjectIdentifier.builder().key(o.key()).build())
+                    .toList();
+
+            if (!toDelete.isEmpty()) {
+                DeleteObjectsRequest deleteRequest = DeleteObjectsRequest.builder()
+                        .bucket(bucketName)
+                        .delete(Delete.builder().objects(toDelete).build())
+                        .build();
+                s3Client.deleteObjects(deleteRequest);
+            }
+
+            continuationToken = listResponse.nextContinuationToken();
+        } while (continuationToken != null);
     }
 }

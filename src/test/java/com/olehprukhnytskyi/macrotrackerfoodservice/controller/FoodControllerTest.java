@@ -36,7 +36,9 @@ import com.olehprukhnytskyi.macrotrackerfoodservice.dto.PagedResponse;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.Pagination;
 import com.olehprukhnytskyi.macrotrackerfoodservice.mapper.NutrimentsMapper;
 import com.olehprukhnytskyi.macrotrackerfoodservice.model.Food;
-import com.olehprukhnytskyi.macrotrackerfoodservice.repository.FoodRepository;
+import com.olehprukhnytskyi.macrotrackerfoodservice.model.OutboxEvent;
+import com.olehprukhnytskyi.macrotrackerfoodservice.repository.jpa.OutboxRepository;
+import com.olehprukhnytskyi.macrotrackerfoodservice.repository.mongo.FoodRepository;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.FoodService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.ImageService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.RequestDeduplicationService;
@@ -90,6 +92,8 @@ class FoodControllerTest extends AbstractIntegrationTest {
     private FoodService foodService;
     @MockitoSpyBean
     private FoodRepository foodRepository;
+    @MockitoSpyBean
+    private OutboxRepository outboxRepository;
 
     private FoodRequestDto foodRequestDto;
     private FoodResponseDto foodResponseDto;
@@ -522,7 +526,6 @@ class FoodControllerTest extends AbstractIntegrationTest {
         String foodId = "22222222";
 
         assertThat(foodRepository.findById(foodId)).isPresent();
-        doNothing().when(s3StorageService).deleteFolder(anyString());
 
         // When
         mockMvc.perform(
@@ -533,7 +536,7 @@ class FoodControllerTest extends AbstractIntegrationTest {
                 .andExpect(content().string(""));
 
         // Then
-        verify(s3StorageService, times(1)).deleteFolder(anyString());
+        verify(outboxRepository, times(1)).save(any(OutboxEvent.class));
         assertThat(foodRepository.findById(foodId)).isEmpty();
     }
 }

@@ -1,6 +1,7 @@
 package com.olehprukhnytskyi.macrotrackerfoodservice.service.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.eq;
@@ -18,7 +19,9 @@ import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodListCacheWrapper;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodPatchRequestDto;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodResponseDto;
 import com.olehprukhnytskyi.macrotrackerfoodservice.model.Food;
-import com.olehprukhnytskyi.macrotrackerfoodservice.repository.FoodRepository;
+import com.olehprukhnytskyi.macrotrackerfoodservice.model.OutboxEvent;
+import com.olehprukhnytskyi.macrotrackerfoodservice.repository.jpa.OutboxRepository;
+import com.olehprukhnytskyi.macrotrackerfoodservice.repository.mongo.FoodRepository;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.FoodService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.S3StorageService;
 import java.io.IOException;
@@ -37,6 +40,8 @@ import org.springframework.util.DigestUtils;
 class FoodServiceImplCacheTest extends AbstractIntegrationTest {
     @MockitoBean
     private FoodRepository foodRepository;
+    @MockitoBean
+    private OutboxRepository outboxRepository;
     @MockitoBean
     private S3StorageService s3StorageService;
     @MockitoBean
@@ -206,7 +211,7 @@ class FoodServiceImplCacheTest extends AbstractIntegrationTest {
 
         // Then
         verify(foodRepository, times(1)).deleteByIdAndUserId(id, userId);
-        verify(s3StorageService, times(1)).deleteFolder("images/products/" + id + "/");
+        verify(outboxRepository, times(1)).save(any(OutboxEvent.class));
         assertThat(redisTemplate.opsForValue().get(cacheKey)).isNull();
     }
 
