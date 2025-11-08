@@ -1,5 +1,6 @@
 package com.olehprukhnytskyi.macrotrackerfoodservice.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,12 +10,26 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(description = "Food product response")
 public class FoodResponseDto {
+    @Schema(description = "Unique identifier", example = "507f1f77bcf86cd799439011")
     private String id;
+
+    @Schema(description = "Product barcode", example = "5901234123457")
     private String code;
+
+    @Schema(description = "Product name", example = "Organic Chicken Breast")
     private String productName;
+
+    @Schema(description = "Generic product name", example = "Poultry")
     private String genericName;
+
+    @Schema(description = "Product image URL", example = "https://example.com/images/chicken.jpg")
     private String imageUrl;
+
+    @Schema(description = "Product brands", example = "Organic Farms Inc.")
     private String brands;
+
+    @Schema(description = "Nutrition information")
     private NutrimentsDto nutriments;
 }

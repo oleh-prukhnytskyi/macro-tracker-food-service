@@ -9,6 +9,8 @@ import com.olehprukhnytskyi.macrotrackerfoodservice.service.FoodService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.RequestDeduplicationService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.util.CustomHeaders;
 import com.olehprukhnytskyi.macrotrackerfoodservice.util.ProcessedEntityType;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import java.util.List;
@@ -34,10 +36,18 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/foods")
+@Tag(
+        name = "Food Products API",
+        description = "Manage and search food products with nutrition information"
+)
 public class FoodController {
     private final FoodService foodService;
     private final RequestDeduplicationService requestDeduplicationService;
 
+    @Operation(
+            summary = "Get food by ID",
+            description = "Retrieve food product details by its unique identifier"
+    )
     @GetMapping("/{id}")
     public ResponseEntity<FoodResponseDto> findById(
             @PathVariable String id) {
@@ -45,6 +55,10 @@ public class FoodController {
         return ResponseEntity.ok(food);
     }
 
+    @Operation(
+            summary = "Search foods",
+            description = "Search food products by name, brand or description with pagination"
+    )
     @GetMapping
     public ResponseEntity<PagedResponse<FoodResponseDto>> findByQuery(
             @RequestParam String query,
@@ -57,6 +71,10 @@ public class FoodController {
                 .body(new PagedResponse<>(foods, pagination));
     }
 
+    @Operation(
+            summary = "Get search suggestions",
+            description = "Get autocomplete suggestions for food search"
+    )
     @GetMapping("/search-suggestions")
     public ResponseEntity<List<String>> getSearchSuggestions(
             @RequestParam String query) {
@@ -66,6 +84,10 @@ public class FoodController {
                 : ResponseEntity.ok(suggestions);
     }
 
+    @Operation(
+            summary = "Create food product",
+            description = "Add new food product to database with optional image upload"
+    )
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<FoodResponseDto> save(
             @RequestPart("food") @Valid FoodRequestDto requestDto,
@@ -93,6 +115,10 @@ public class FoodController {
                 .body(saved);
     }
 
+    @Operation(
+            summary = "Update food product",
+            description = "Partially update food product information"
+    )
     @PatchMapping("/{id}")
     public ResponseEntity<FoodResponseDto> patch(
             @PathVariable String id,
@@ -101,6 +127,10 @@ public class FoodController {
         return ResponseEntity.ok(updated);
     }
 
+    @Operation(
+            summary = "Delete food product",
+            description = "Delete food product by ID (user can only delete their own products)"
+    )
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteFood(
             @PathVariable String id,
