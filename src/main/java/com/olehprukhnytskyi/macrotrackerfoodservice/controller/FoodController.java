@@ -15,6 +15,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -32,6 +33,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+@Slf4j
 @Validated
 @RestController
 @RequiredArgsConstructor
@@ -51,7 +53,9 @@ public class FoodController {
     @GetMapping("/{id}")
     public ResponseEntity<FoodResponseDto> findById(
             @PathVariable String id) {
+        log.info("Fetching food by id={}", id);
         FoodResponseDto food = foodService.findById(id);
+        log.debug("Food retrieved successfully for id={}", id);
         return ResponseEntity.ok(food);
     }
 
@@ -64,6 +68,7 @@ public class FoodController {
             @RequestParam String query,
             @RequestParam(defaultValue = "0") @Min(0) int offset,
             @RequestParam(defaultValue = "25") @Min(1) int limit) {
+        log.info("Searching foods query='{}' offset={} limit={}", query, offset, limit);
         List<FoodResponseDto> foods = foodService.findByQuery(query, offset, limit).getItems();
         Pagination pagination = new Pagination(offset, limit, foods.size());
         return ResponseEntity
@@ -78,6 +83,7 @@ public class FoodController {
     @GetMapping("/search-suggestions")
     public ResponseEntity<List<String>> getSearchSuggestions(
             @RequestParam String query) {
+        log.debug("Fetching search suggestions for query='{}'", query);
         List<String> suggestions = foodService.getSearchSuggestions(query);
         return suggestions.isEmpty()
                 ? ResponseEntity.noContent().build()
@@ -94,6 +100,7 @@ public class FoodController {
             @RequestPart(value = "image", required = false) MultipartFile image,
             @RequestHeader(CustomHeaders.X_USER_ID) Long userId,
             @RequestHeader(CustomHeaders.X_REQUEST_ID) String requestId) {
+        log.info("Creating food product for userId={} requestId={}", userId, requestId);
         if (requestDeduplicationService.isProcessed(
                 ProcessedEntityType.FOOD, requestId, userId)) {
             return requestDeduplicationService
@@ -106,10 +113,10 @@ public class FoodController {
                     .map(ResponseEntity::ok)
                     .orElse(ResponseEntity.status(HttpStatus.CONFLICT).build());
         }
-        FoodResponseDto saved = foodService.createFoodWithImages(
-                requestDto, image, userId);
+        FoodResponseDto saved = foodService.createFoodWithImages(requestDto, image, userId);
         requestDeduplicationService.markAsProcessed(
                 ProcessedEntityType.FOOD, requestId, userId, saved);
+        log.info("Food created successfully for userId={} code={}", userId, saved.getId());
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(saved);
@@ -123,7 +130,9 @@ public class FoodController {
     public ResponseEntity<FoodResponseDto> patch(
             @PathVariable String id,
             @RequestBody @Valid FoodPatchRequestDto dto) {
+        log.info("Updating food with id={}", id);
         FoodResponseDto updated = foodService.patch(id, dto);
+        log.debug("Food updated successfully for id={}", id);
         return ResponseEntity.ok(updated);
     }
 
@@ -135,7 +144,9 @@ public class FoodController {
     public ResponseEntity<Void> deleteFood(
             @PathVariable String id,
             @RequestHeader(CustomHeaders.X_USER_ID) Long userId) {
+        log.info("Deleting food id={} by userId={}", id, userId);
         foodService.deleteByIdAndUserId(id, userId);
+        log.debug("Food deleted successfully id={} userId={}", id, userId);
         return ResponseEntity.noContent().build();
     }
 }

@@ -165,6 +165,7 @@ class FoodServiceImplTest {
                 .thenReturn(new ByteArrayInputStream("fake".getBytes()));
         when(imageService.generateImageKey(any(), anyString(), anyInt()))
                 .thenReturn("images/products/test.png");
+        when(foodRepository.save(any())).thenReturn(food);
 
         // When
         FoodResponseDto result = foodService.createFoodWithImages(foodRequestDto, image, 1L);

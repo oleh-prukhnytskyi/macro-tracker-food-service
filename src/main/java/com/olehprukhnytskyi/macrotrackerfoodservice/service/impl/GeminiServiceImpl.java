@@ -12,10 +12,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GeminiServiceImpl implements GeminiService {
@@ -25,17 +27,15 @@ public class GeminiServiceImpl implements GeminiService {
 
     @Override
     public List<String> generateKeywords(Food food) {
-        if (food == null
-                || food.getProductName() == null
-                || food.getNutriments() == null) {
+        if (food == null || food.getProductName() == null || food.getNutriments() == null) {
+            log.warn("Skipping keyword generation: incomplete food data");
             return Collections.emptyList();
         }
         Map<String, Object> prompt = getKeywordsPrompt(food);
         try {
+            log.debug("Requesting Gemini keyword generation for food='{}'", food.getProductName());
             ResponseEntity<String> response = geminiClient.generateContent(apiKey, prompt);
-
-            if (response.getStatusCode().is2xxSuccessful()
-                    && response.getBody() != null) {
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 JsonNode root = new ObjectMapper().readTree(response.getBody());
                 JsonNode candidates = root.path("candidates");
                 if (candidates.isArray() && !candidates.isEmpty()) {
@@ -47,16 +47,21 @@ public class GeminiServiceImpl implements GeminiService {
                             .asText()
                             .trim();
                     if (content.equalsIgnoreCase("unknown")) {
+                        log.debug("Gemini returned 'unknown' for '{}'", food.getProductName());
                         return Collections.emptyList();
                     }
-                    return Arrays.stream(content.split(","))
+                    List<String> keywords = Arrays.stream(content.split(","))
                             .map(String::trim)
                             .filter(s -> !s.isEmpty())
                             .distinct()
                             .collect(Collectors.toList());
+                    log.info("Generated {} keywords for '{}'",
+                            keywords.size(), food.getProductName());
+                    return keywords;
                 }
             }
         } catch (Exception e) {
+            log.error("Failed to generate keywords for '{}'", food.getProductName(), e);
             throw new KeywordGenerationException("Failed to generate keywords from Gemini", e);
         }
         return Collections.emptyList();

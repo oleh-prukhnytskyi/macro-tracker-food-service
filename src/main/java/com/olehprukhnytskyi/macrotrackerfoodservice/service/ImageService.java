@@ -11,10 +11,12 @@ import java.util.List;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
+import lombok.extern.slf4j.Slf4j;
 import net.coobird.thumbnailator.Thumbnails;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+@Slf4j
 @Service
 public class ImageService {
     private static final long MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -38,6 +40,7 @@ public class ImageService {
 
     public ByteArrayInputStream resizeImage(MultipartFile file, int size) {
         try {
+            log.debug("Resizing image to {}px", size);
             BufferedImage resizedImage = Thumbnails.of(ImageIO.read(file.getInputStream()))
                     .width(size)
                     .keepAspectRatio(true)
@@ -46,6 +49,7 @@ public class ImageService {
             ImageIO.write(resizedImage, detectImageFormat(file), baos);
             return new ByteArrayInputStream(baos.toByteArray());
         } catch (IOException e) {
+            log.error("Image resize failed", e);
             throw new RuntimeException("Failed to resize image", e);
         }
     }
@@ -55,18 +59,22 @@ public class ImageService {
             ImageInputStream iis = ImageIO.createImageInputStream(is);
             Iterator<ImageReader> readers = ImageIO.getImageReaders(iis);
             if (readers.hasNext()) {
-                ImageReader reader = readers.next();
-                return reader.getFormatName().toLowerCase();
+                String format = readers.next().getFormatName().toLowerCase();
+                log.trace("Detected image format: {}", format);
+                return format;
             } else {
                 throw new IllegalArgumentException("Unsupported image format");
             }
         } catch (IOException e) {
+            log.error("Failed to detect image format", e);
             throw new RuntimeException("Failed to detect image format", e);
         }
     }
 
     public String generateImageKey(MultipartFile file, String foodId, int imageWidth) {
         String format = detectImageFormat(file);
-        return "images/products/" + foodId + "/" + imageWidth + "." + format;
+        String key = "images/products/" + foodId + "/" + imageWidth + "." + format;
+        log.trace("Generated image key={}", key);
+        return key;
     }
 }

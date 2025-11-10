@@ -34,6 +34,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -41,6 +42,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class FoodServiceImpl implements FoodService {
@@ -60,11 +62,14 @@ public class FoodServiceImpl implements FoodService {
     @Override
     public FoodResponseDto createFoodWithImages(FoodRequestDto dto,
                                                 MultipartFile image, Long userId) {
+        log.info("Creating new food item for userId={}", userId);
         try {
             if (dto.getCode() != null) {
                 Optional<Food> existing = foodRepository.findById(dto.getCode());
                 if (existing.isPresent()) {
                     if (isSameProduct(existing.get(), dto)) {
+                        log.debug("Duplicate food detected with same data, "
+                                        + "returning existing id={}", existing.get().getId());
                         return foodMapper.toDto(existing.get());
                     }
                     throw new ConflictException("Product with this code"
@@ -75,6 +80,7 @@ public class FoodServiceImpl implements FoodService {
             Food food = createNewFood(dto, userId);
 
             if (image != null) {
+                log.debug("Processing image for food creation userId={}", userId);
                 imageService.validateImage(image);
                 ByteArrayInputStream resizedStream = imageService
                         .resizeImage(image, FOOD_IMAGE_SIZE);
@@ -83,16 +89,22 @@ public class FoodServiceImpl implements FoodService {
                 String imageUrl = s3StorageService.uploadFile(resizedStream,
                         resizedStream.available(), imageKey, image.getContentType());
                 food.setImageUrl(imageUrl);
+                log.trace("Image uploaded successfully key={}", imageKey);
             }
 
             int attempts = 0;
             while (attempts < MAX_RETRIES) {
                 try {
                     Food saved = foodRepository.save(food);
+                    log.info("Food created successfully userId={} foodId={}",
+                            userId, saved.getId());
                     return foodMapper.toDto(saved);
                 } catch (DuplicateKeyException e) {
                     attempts++;
+                    log.warn("Duplicate key on save attempt {}/{} for userId={}",
+                            attempts, MAX_RETRIES, userId);
                     if (attempts == MAX_RETRIES) {
+                        log.error("Data integrity error while saving food userId={}", userId);
                         throw new ConflictException("Duplicate key error after max retries", e);
                     }
                 } catch (DataIntegrityViolationException e) {
@@ -104,6 +116,7 @@ public class FoodServiceImpl implements FoodService {
         } catch (ConflictException | BadRequestException e) {
             throw e;
         } catch (Exception e) {
+            log.error("Unexpected error while saving food userId={}", userId, e);
             throw new InternalServerErrorException("Unexpected error while saving food", e);
         }
     }
@@ -116,6 +129,7 @@ public class FoodServiceImpl implements FoodService {
     )
     @Override
     public FoodListCacheWrapper findByQuery(String query, int offset, int limit) {
+        log.debug("Searching foods query='{}' offset={} limit={}", query, offset, limit);
         if (query == null || query.trim().isEmpty()) {
             throw new BadRequestException("Query must not be null or empty");
         }
@@ -179,6 +193,7 @@ public class FoodServiceImpl implements FoodService {
     @Cacheable(value = "food:data", key = "#id")
     @Override
     public FoodResponseDto findById(String id) {
+        log.debug("Fetching food by id={}", id);
         Food food = foodRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Food not found with id: " + id));
         return foodMapper.toDto(food);
@@ -192,6 +207,7 @@ public class FoodServiceImpl implements FoodService {
     )
     @Override
     public List<String> getSearchSuggestions(String query) {
+        log.trace("Fetching search suggestions query='{}'", query);
         if (query == null || query.trim().isEmpty()) {
             return Collections.emptyList();
         }
@@ -239,6 +255,7 @@ public class FoodServiceImpl implements FoodService {
     @CacheEvict(value = "food:data", key = "#id")
     @Override
     public FoodResponseDto patch(String id, FoodPatchRequestDto dto) {
+        log.info("Updating food id={}", id);
         try {
             Food existing = foodRepository.findById(id)
                     .orElseThrow(() -> new NotFoundException("Food not found with id: " + id));
@@ -256,11 +273,14 @@ public class FoodServiceImpl implements FoodService {
     @Transactional
     @Override
     public void deleteByIdAndUserId(String id, Long userId) {
+        log.info("Deleting food id={} userId={}", id, userId);
         foodRepository.deleteByIdAndUserId(id, userId);
         outboxRepository.save(OutboxEvent.builder()
                 .aggregateType("FOOD")
                 .aggregateId(id)
-                .eventType("FOOD_DELETED").build());
+                .eventType("FOOD_DELETED")
+                .build());
+        log.debug("Food deleted successfully id={} userId={}", id, userId);
     }
 
     private Food createNewFood(FoodRequestDto request, Long userId) {
