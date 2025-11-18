@@ -1,14 +1,14 @@
 package com.olehprukhnytskyi.macrotrackerfoodservice.controller;
 
+import com.olehprukhnytskyi.dto.PagedResponse;
+import com.olehprukhnytskyi.dto.Pagination;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodPatchRequestDto;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodRequestDto;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodResponseDto;
-import com.olehprukhnytskyi.macrotrackerfoodservice.dto.PagedResponse;
-import com.olehprukhnytskyi.macrotrackerfoodservice.dto.Pagination;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.FoodService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.RequestDeduplicationService;
-import com.olehprukhnytskyi.macrotrackerfoodservice.util.CustomHeaders;
 import com.olehprukhnytskyi.macrotrackerfoodservice.util.ProcessedEntityType;
+import com.olehprukhnytskyi.util.CustomHeaders;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;

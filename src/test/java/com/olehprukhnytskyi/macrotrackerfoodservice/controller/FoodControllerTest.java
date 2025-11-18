@@ -24,27 +24,28 @@ import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.util.ObjectBuilder;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.olehprukhnytskyi.dto.PagedResponse;
+import com.olehprukhnytskyi.dto.Pagination;
+import com.olehprukhnytskyi.dto.ProblemDetails;
+import com.olehprukhnytskyi.exception.error.BaseErrorCode;
+import com.olehprukhnytskyi.exception.error.CommonErrorCode;
 import com.olehprukhnytskyi.macrotrackerfoodservice.config.AbstractIntegrationTest;
-import com.olehprukhnytskyi.macrotrackerfoodservice.dto.ApiError;
-import com.olehprukhnytskyi.macrotrackerfoodservice.dto.ApiResponse;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodPatchRequestDto;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodRequestDto;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodResponseDto;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.NutrimentsDto;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.NutrimentsPatchDto;
-import com.olehprukhnytskyi.macrotrackerfoodservice.dto.PagedResponse;
-import com.olehprukhnytskyi.macrotrackerfoodservice.dto.Pagination;
 import com.olehprukhnytskyi.macrotrackerfoodservice.mapper.NutrimentsMapper;
 import com.olehprukhnytskyi.macrotrackerfoodservice.model.Food;
 import com.olehprukhnytskyi.macrotrackerfoodservice.model.OutboxEvent;
 import com.olehprukhnytskyi.macrotrackerfoodservice.repository.jpa.OutboxRepository;
 import com.olehprukhnytskyi.macrotrackerfoodservice.repository.mongo.FoodRepository;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.FoodService;
+import com.olehprukhnytskyi.macrotrackerfoodservice.service.GeminiService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.ImageService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.RequestDeduplicationService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.S3StorageService;
-import com.olehprukhnytskyi.macrotrackerfoodservice.service.impl.GeminiServiceImpl;
-import com.olehprukhnytskyi.macrotrackerfoodservice.util.CustomHeaders;
+import com.olehprukhnytskyi.util.CustomHeaders;
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
 import java.util.Collections;
@@ -56,6 +57,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
@@ -82,7 +84,7 @@ class FoodControllerTest extends AbstractIntegrationTest {
     @MockitoBean
     private RequestDeduplicationService requestDeduplicationService;
     @MockitoBean
-    private GeminiServiceImpl geminiService;
+    private GeminiService geminiService;
     @MockitoBean
     private ImageService imageService;
     @MockitoBean
@@ -263,14 +265,24 @@ class FoodControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("When offset is negative, should return 400 Bad Request and error response")
-    void findByQuery_whenOffsetIsNegative_shouldReturnBadRequestAndErrorResponse()
+    @DisplayName("When offset is negative, should throw validation exception")
+    void findByQuery_whenOffsetIsNegative_shouldThrowValidationException()
             throws Exception {
         // Given
-        ApiResponse<List<FoodResponseDto>> pagedResponse = ApiResponse.error(
-                new ApiError("validation",
-                        "findByQuery.offset must be greater than or equal to 0"));
-        String expected = objectMapper.writeValueAsString(pagedResponse);
+        BaseErrorCode errorCode = CommonErrorCode.VALIDATION_ERROR;
+        ProblemDetails problemDetails = ProblemDetails.builder()
+                .title(errorCode.getTitle())
+                .status(errorCode.getStatus())
+                .detail("Validation failed for one or more parameters")
+                .traceId(MDC.get("traceId"))
+                .code(errorCode.getCode())
+                .invalidParams(List.of(new ProblemDetails.InvalidParam(
+                        "findByQuery.offset",
+                        "must be greater than or equal to 0"
+                )))
+                .build();
+
+        String expected = objectMapper.writeValueAsString(problemDetails);
 
         // When
         MvcResult mvcResult = mockMvc.perform(
@@ -287,13 +299,24 @@ class FoodControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("When limit is negative, should return 400 Bad Request and error response")
-    void findByQuery_whenLimitIsNegative_shouldReturnBadRequestAndErrorResponse()
+    @DisplayName("When limit is negative, should throw validation exception")
+    void findByQuery_whenLimitIsNegative_shouldThrowValidationException()
             throws Exception {
         // Given
-        ApiResponse<List<FoodResponseDto>> pagedResponse = ApiResponse.error(
-                new ApiError("validation", "findByQuery.limit must be greater than or equal to 1"));
-        String expected = objectMapper.writeValueAsString(pagedResponse);
+        BaseErrorCode errorCode = CommonErrorCode.VALIDATION_ERROR;
+        ProblemDetails problemDetails = ProblemDetails.builder()
+                .title(errorCode.getTitle())
+                .status(errorCode.getStatus())
+                .detail("Validation failed for one or more parameters")
+                .traceId(MDC.get("traceId"))
+                .code(errorCode.getCode())
+                .invalidParams(List.of(new ProblemDetails.InvalidParam(
+                        "findByQuery.limit",
+                        "must be greater than or equal to 1"
+                )))
+                .build();
+
+        String expected = objectMapper.writeValueAsString(problemDetails);
 
         // When
         MvcResult mvcResult = mockMvc.perform(
@@ -424,8 +447,8 @@ class FoodControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("When request has validation errors, should return 400 Bad Request with error")
-    void save_whenValidationError_shouldReturnBadRequest() throws Exception {
+    @DisplayName("When request has validation errors, should throw validation exception")
+    void save_whenValidationError_shouldThrowValidationException() throws Exception {
         // Given
         foodRequestDto.setProductName(null);
         String foodJson = objectMapper.writeValueAsString(foodRequestDto);
@@ -444,9 +467,20 @@ class FoodControllerTest extends AbstractIntegrationTest {
                 "fake".getBytes()
         );
 
-        ApiResponse<?> response = ApiResponse.error(
-                new ApiError("productName", "must not be null"));
-        String expected = objectMapper.writeValueAsString(response);
+        BaseErrorCode errorCode = CommonErrorCode.VALIDATION_ERROR;
+        ProblemDetails problemDetails = ProblemDetails.builder()
+                .title(errorCode.getTitle())
+                .status(errorCode.getStatus())
+                .detail("Validation failed for one or more parameters")
+                .traceId(MDC.get("traceId"))
+                .code(errorCode.getCode())
+                .invalidParams(List.of(new ProblemDetails.InvalidParam(
+                        "productName",
+                        "must not be null"
+                )))
+                .build();
+
+        String expected = objectMapper.writeValueAsString(problemDetails);
 
         // When & Then
         mockMvc.perform(
@@ -489,9 +523,8 @@ class FoodControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("When patch request has validation errors,"
-            + " should return 400 Bad Request with error")
-    void patch_whenValidationError_shouldReturnBadRequest() throws Exception {
+    @DisplayName("When patch request has validation errors, should throw validation exception")
+    void patch_whenValidationError_shouldThrowValidationException() throws Exception {
         // Given
         String id = "11111111";
 
@@ -504,10 +537,21 @@ class FoodControllerTest extends AbstractIntegrationTest {
                 .build();
 
         String requestJson = objectMapper.writeValueAsString(requestDto);
-        ApiResponse<Object> response = ApiResponse.error(
-                new ApiError("nutriments.carbohydrates",
-                        "must be greater than or equal to 0.0"));
-        String expected = objectMapper.writeValueAsString(response);
+
+        BaseErrorCode errorCode = CommonErrorCode.VALIDATION_ERROR;
+        ProblemDetails problemDetails = ProblemDetails.builder()
+                .title(errorCode.getTitle())
+                .status(errorCode.getStatus())
+                .detail("Validation failed for one or more parameters")
+                .traceId(MDC.get("traceId"))
+                .code(errorCode.getCode())
+                .invalidParams(List.of(new ProblemDetails.InvalidParam(
+                        "nutriments.carbohydrates",
+                        "must be greater than or equal to 0.0"
+                )))
+                .build();
+
+        String expected = objectMapper.writeValueAsString(problemDetails);
 
         // When & Then
         mockMvc.perform(

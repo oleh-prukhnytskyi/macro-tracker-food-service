@@ -37,7 +37,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.util.DigestUtils;
 
-class FoodServiceImplCacheTest extends AbstractIntegrationTest {
+class FoodServiceCacheTest extends AbstractIntegrationTest {
     @MockitoBean
     private FoodRepository foodRepository;
     @MockitoBean

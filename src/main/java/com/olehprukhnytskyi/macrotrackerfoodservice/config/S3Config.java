@@ -1,6 +1,7 @@
 package com.olehprukhnytskyi.macrotrackerfoodservice.config;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.olehprukhnytskyi.macrotrackerfoodservice.properties.S3Properties;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -9,20 +10,19 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 
 @Configuration
+@RequiredArgsConstructor
 public class S3Config {
-    @Value("${aws.region}")
-    private String region;
-    @Value("${aws.credentials.accessKey}")
-    private String accessKey;
-    @Value("${aws.credentials.secretKey}")
-    private String secretKey;
+    private final S3Properties s3Properties;
 
     @Bean
     public S3Client s3Client() {
         return S3Client.builder()
-                .region(Region.of(region))
+                .region(Region.of(s3Properties.getRegion()))
                 .credentialsProvider(StaticCredentialsProvider.create(
-                        AwsBasicCredentials.create(accessKey, secretKey))
+                        AwsBasicCredentials.create(
+                                s3Properties.getCredentials().getAccessKey(),
+                                s3Properties.getCredentials().getSecretKey())
+                        )
                 )
                 .build();
     }

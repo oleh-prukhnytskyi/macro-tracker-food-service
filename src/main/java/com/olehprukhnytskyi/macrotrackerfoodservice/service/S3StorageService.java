@@ -1,10 +1,10 @@
 package com.olehprukhnytskyi.macrotrackerfoodservice.service;
 
+import com.olehprukhnytskyi.macrotrackerfoodservice.properties.S3Properties;
 import java.io.InputStream;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -20,21 +20,19 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 @RequiredArgsConstructor
 public class S3StorageService {
     private final S3Client s3Client;
-
-    @Value("${aws.s3.bucket}")
-    private String bucketName;
+    private final S3Properties s3Properties;
 
     public String uploadFile(InputStream inputStream, long contentLength,
                              String key, String contentType) {
-        log.info("Uploading file to S3 bucket={} key={}", bucketName, key);
+        log.info("Uploading file to S3 bucket={} key={}", s3Properties.getS3Bucket(), key);
         PutObjectRequest request = PutObjectRequest.builder()
-                .bucket(bucketName)
+                .bucket(s3Properties.getS3Bucket())
                 .key(key)
                 .contentType(contentType)
                 .build();
         s3Client.putObject(request, RequestBody.fromInputStream(inputStream, contentLength));
         String url = s3Client.utilities().getUrl(builder -> builder
-                .bucket(bucketName).key(key)).toString();
+                .bucket(s3Properties.getS3Bucket()).key(key)).toString();
         log.debug("File uploaded successfully to S3: {}", url);
         return url;
     }
@@ -44,7 +42,7 @@ public class S3StorageService {
         String continuationToken = null;
         do {
             ListObjectsV2Request listRequest = ListObjectsV2Request.builder()
-                    .bucket(bucketName)
+                    .bucket(s3Properties.getS3Bucket())
                     .prefix(prefix)
                     .continuationToken(continuationToken)
                     .build();
@@ -54,7 +52,7 @@ public class S3StorageService {
                     .toList();
             if (!toDelete.isEmpty()) {
                 DeleteObjectsRequest deleteRequest = DeleteObjectsRequest.builder()
-                        .bucket(bucketName)
+                        .bucket(s3Properties.getS3Bucket())
                         .delete(Delete.builder().objects(toDelete).build())
                         .build();
                 s3Client.deleteObjects(deleteRequest);

@@ -10,7 +10,7 @@
                     <pattern>
                         {
                         "level": "%level",
-                        "service": "user-service",
+                        "service": "food-service",
                         "thread": "%thread",
                         "logger": "%logger{36}",
                         "message": "%message",

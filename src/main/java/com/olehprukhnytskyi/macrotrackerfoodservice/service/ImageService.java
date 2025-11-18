@@ -1,6 +1,8 @@
 package com.olehprukhnytskyi.macrotrackerfoodservice.service;
 
-import com.olehprukhnytskyi.macrotrackerfoodservice.exception.BadRequestException;
+import com.olehprukhnytskyi.exception.BadRequestException;
+import com.olehprukhnytskyi.exception.InternalServerException;
+import com.olehprukhnytskyi.exception.error.CommonErrorCode;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -28,13 +30,15 @@ public class ImageService {
 
     public void validateImage(MultipartFile image) {
         if (image.isEmpty()) {
-            throw new BadRequestException("Empty file uploaded");
+            throw new BadRequestException(CommonErrorCode.BAD_REQUEST, "Empty file uploaded");
         }
         if (!ALLOWED_CONTENT_TYPES.contains(image.getContentType())) {
-            throw new BadRequestException("Invalid file type: only JPG, PNG, and WEBP are allowed");
+            throw new BadRequestException(CommonErrorCode.BAD_REQUEST,
+                    "Invalid file type: only JPG, PNG, and WEBP are allowed");
         }
         if (image.getSize() > MAX_FILE_SIZE) {
-            throw new BadRequestException("File size must not exceed 5 MB");
+            throw new BadRequestException(CommonErrorCode.BAD_REQUEST,
+                    "File size must not exceed 5 MB");
         }
     }
 
@@ -50,7 +54,8 @@ public class ImageService {
             return new ByteArrayInputStream(baos.toByteArray());
         } catch (IOException e) {
             log.error("Image resize failed", e);
-            throw new RuntimeException("Failed to resize image", e);
+            throw new InternalServerException(CommonErrorCode.INTERNAL_ERROR,
+                    "Failed to resize image", e);
         }
     }
 
@@ -63,11 +68,13 @@ public class ImageService {
                 log.trace("Detected image format: {}", format);
                 return format;
             } else {
-                throw new IllegalArgumentException("Unsupported image format");
+                throw new BadRequestException(CommonErrorCode.BAD_REQUEST,
+                        "Unsupported image format");
             }
         } catch (IOException e) {
             log.error("Failed to detect image format", e);
-            throw new RuntimeException("Failed to detect image format", e);
+            throw new InternalServerException(CommonErrorCode.INTERNAL_ERROR,
+                    "Failed to detect image format", e);
         }
     }
 

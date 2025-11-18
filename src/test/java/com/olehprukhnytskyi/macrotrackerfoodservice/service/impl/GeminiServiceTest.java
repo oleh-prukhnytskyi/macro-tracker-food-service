@@ -6,10 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import com.olehprukhnytskyi.exception.ExternalServiceException;
 import com.olehprukhnytskyi.macrotrackerfoodservice.client.GeminiClient;
-import com.olehprukhnytskyi.macrotrackerfoodservice.exception.KeywordGenerationException;
 import com.olehprukhnytskyi.macrotrackerfoodservice.model.Food;
 import com.olehprukhnytskyi.macrotrackerfoodservice.model.Nutriments;
+import com.olehprukhnytskyi.macrotrackerfoodservice.properties.GeminiProperties;
+import com.olehprukhnytskyi.macrotrackerfoodservice.service.GeminiService;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,22 +23,21 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
-class GeminiServiceImplTest {
+class GeminiServiceTest {
     @Mock
     private GeminiClient geminiClient;
+    @Mock
+    private GeminiProperties geminiProperties;
 
     @InjectMocks
-    private GeminiServiceImpl geminiService;
+    private GeminiService geminiService;
 
     private Food food;
 
     @BeforeEach
     void setup() {
-        ReflectionTestUtils.setField(geminiService, "apiKey", "dummy-api-key");
-
         Nutriments nutriments = new Nutriments();
         nutriments.setKcal(BigDecimal.valueOf(200.0));
         nutriments.setFat(BigDecimal.valueOf(8.0));
@@ -124,13 +125,13 @@ class GeminiServiceImplTest {
                 .thenThrow(new RuntimeException("Failure"));
 
         // When
-        KeywordGenerationException keywordGenerationException = assertThrows(
-                KeywordGenerationException.class, () -> geminiService.generateKeywords(food)
+        ExternalServiceException exception = assertThrows(
+                ExternalServiceException.class, () -> geminiService.generateKeywords(food)
         );
 
         // Then
         String expected = "Failed to generate keywords from Gemini";
-        assertEquals(expected, keywordGenerationException.getMessage());
+        assertEquals(expected, exception.getMessage());
     }
 
     @Test

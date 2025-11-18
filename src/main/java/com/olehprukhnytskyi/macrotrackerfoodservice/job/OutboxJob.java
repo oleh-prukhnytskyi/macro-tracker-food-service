@@ -4,6 +4,7 @@ import com.olehprukhnytskyi.macrotrackerfoodservice.model.OutboxEvent;
 import com.olehprukhnytskyi.macrotrackerfoodservice.repository.jpa.OutboxRepository;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.S3StorageService;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,15 +24,23 @@ public class OutboxJob {
     public void processFoodDeletedEvents() {
         List<OutboxEvent> events = outboxRepository
                 .findTop100ByProcessedFalseAndEventTypeOrderByCreatedAtAsc("FOOD_DELETED");
+        if (events.isEmpty()) {
+            return;
+        }
+
+        List<OutboxEvent> processedEvents = new ArrayList<>();
         for (OutboxEvent event : events) {
             try {
                 s3StorageService.deleteFolder("images/products/" + event.getAggregateId() + "/");
                 event.setProcessed(true);
                 event.setProcessedAt(Instant.now());
+                processedEvents.add(event);
             } catch (Exception e) {
                 log.error("Failed to process outbox event {}: {}", event.getId(), e.getMessage());
             }
         }
-        outboxRepository.saveAll(events);
+        if (!processedEvents.isEmpty()) {
+            outboxRepository.saveAll(processedEvents);
+        }
     }
 }

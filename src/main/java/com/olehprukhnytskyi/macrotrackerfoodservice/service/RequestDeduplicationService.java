@@ -2,6 +2,8 @@ package com.olehprukhnytskyi.macrotrackerfoodservice.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.olehprukhnytskyi.exception.InternalServerException;
+import com.olehprukhnytskyi.exception.error.EventErrorCode;
 import com.olehprukhnytskyi.macrotrackerfoodservice.util.ProcessedEntityType;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -33,7 +35,8 @@ public class RequestDeduplicationService {
                     1, TimeUnit.HOURS
             );
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to serialize processed object", e);
+            throw new InternalServerException(EventErrorCode.EVENT_SERIALIZATION_FAILED,
+                    "Failed to serialize processed object", e);
         }
     }
 

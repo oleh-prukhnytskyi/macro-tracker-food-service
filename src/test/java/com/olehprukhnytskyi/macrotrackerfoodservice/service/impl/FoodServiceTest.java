@@ -22,22 +22,22 @@ import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch.core.search.HitsMetadata;
 import co.elastic.clients.util.ObjectBuilder;
 import com.mongodb.DuplicateKeyException;
+import com.olehprukhnytskyi.exception.BadRequestException;
+import com.olehprukhnytskyi.exception.ConflictException;
+import com.olehprukhnytskyi.exception.InternalServerException;
+import com.olehprukhnytskyi.exception.NotFoundException;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodListCacheWrapper;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodPatchRequestDto;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodRequestDto;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodResponseDto;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.NutrimentsDto;
-import com.olehprukhnytskyi.macrotrackerfoodservice.exception.BadRequestException;
-import com.olehprukhnytskyi.macrotrackerfoodservice.exception.ConflictException;
-import com.olehprukhnytskyi.macrotrackerfoodservice.exception.InternalServerErrorException;
-import com.olehprukhnytskyi.macrotrackerfoodservice.exception.NotFoundException;
-import com.olehprukhnytskyi.macrotrackerfoodservice.exception.SearchServiceException;
 import com.olehprukhnytskyi.macrotrackerfoodservice.mapper.FoodMapper;
 import com.olehprukhnytskyi.macrotrackerfoodservice.mapper.NutrimentsMapper;
 import com.olehprukhnytskyi.macrotrackerfoodservice.model.Food;
 import com.olehprukhnytskyi.macrotrackerfoodservice.model.Nutriments;
 import com.olehprukhnytskyi.macrotrackerfoodservice.repository.mongo.FoodRepository;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.CounterService;
+import com.olehprukhnytskyi.macrotrackerfoodservice.service.FoodService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.GeminiService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.ImageService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.S3StorageService;
@@ -66,7 +66,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 
 @SuppressWarnings("unchecked")
 @ExtendWith(MockitoExtension.class)
-class FoodServiceImplTest {
+class FoodServiceTest {
     @Mock
     private FoodRepository foodRepository;
     @Mock
@@ -81,13 +81,14 @@ class FoodServiceImplTest {
     private FoodMapper foodMapper;
     @Mock
     private ImageService imageService;
-    @MockitoBean
-    private S3Client s3Client;
     @Mock
     private S3StorageService s3StorageService;
 
+    @MockitoBean
+    private S3Client s3Client;
+
     @InjectMocks
-    private FoodServiceImpl foodService;
+    private FoodService foodService;
 
     @Mock
     private Nutriments nutriments;
@@ -192,7 +193,7 @@ class FoodServiceImplTest {
                 () -> foodService.createFoodWithImages(foodRequestDto, image, 1L));
 
         // Then
-        String expected = "Product with this code already exists with different data";
+        String expected = "Food with this code already exists with different data";
         assertEquals(expected, conflictException.getMessage());
     }
 
@@ -219,8 +220,8 @@ class FoodServiceImplTest {
     }
 
     @Test
-    @DisplayName("When DataIntegrityViolation occurs, should throw BadRequestException")
-    void createFoodWithImages_whenDataIntegrityViolationOccurs_shouldThrowBadRequestException() {
+    @DisplayName("When DataIntegrityViolation occurs, should throw InternalServerException")
+    void createFoodWithImages_whenDataIntegrityViolationOccurs_shouldThrowException() {
         // Given
         foodRequestDto.setCode(null);
 
@@ -232,14 +233,14 @@ class FoodServiceImplTest {
                 .thenReturn("images/products/test.png");
 
         // When
-        BadRequestException badRequestException = assertThrows(
-                BadRequestException.class,
+        InternalServerException exception = assertThrows(
+                InternalServerException.class,
                 () -> foodService.createFoodWithImages(foodRequestDto, image, 1L)
         );
 
         // Then
-        String expected = "Invalid data for saving food";
-        assertEquals(expected, badRequestException.getMessage());
+        String expected = "Unexpected error while saving food";
+        assertEquals(expected, exception.getMessage());
     }
 
     @Test
@@ -324,7 +325,7 @@ class FoodServiceImplTest {
         )).thenThrow(new IOException("Elastic down"));
 
         // When & Then
-        assertThrows(SearchServiceException.class, () ->
+        assertThrows(InternalServerException.class, () ->
                 foodService.findByQuery("milk", 0, 10));
     }
 
@@ -340,7 +341,7 @@ class FoodServiceImplTest {
         )).thenThrow(new RuntimeException("Something went wrong"));
 
         // When & Then
-        assertThrows(InternalServerErrorException.class, () ->
+        assertThrows(InternalServerException.class, () ->
                 foodService.findByQuery("milk", 0, 10));
     }
 
@@ -424,7 +425,8 @@ class FoodServiceImplTest {
                 .thenThrow(new IOException("ES down"));
 
         // When & Then
-        assertThrows(SearchServiceException.class, () -> foodService.getSearchSuggestions("juice"));
+        assertThrows(InternalServerException.class, () -> foodService
+                .getSearchSuggestions("juice"));
     }
 
     @Test
@@ -477,8 +479,8 @@ class FoodServiceImplTest {
         when(foodRepository.findById(id)).thenThrow(new RuntimeException("Unexpected error"));
 
         // When
-        InternalServerErrorException exception = assertThrows(
-                InternalServerErrorException.class, () -> foodService.patch(id, dto)
+        InternalServerException exception = assertThrows(
+                InternalServerException.class, () -> foodService.patch(id, dto)
         );
 
         // Then

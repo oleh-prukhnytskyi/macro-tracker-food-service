@@ -8,8 +8,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.olehprukhnytskyi.macrotrackerfoodservice.exception.InternalServerErrorException;
+import com.olehprukhnytskyi.exception.InternalServerException;
 import com.olehprukhnytskyi.macrotrackerfoodservice.model.Counter;
+import com.olehprukhnytskyi.macrotrackerfoodservice.service.CounterService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,12 +24,12 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 
 @ExtendWith(MockitoExtension.class)
-class CounterServiceImplTest {
+class CounterServiceTest {
     @Mock
     private MongoTemplate mongoTemplate;
 
     @InjectMocks
-    private CounterServiceImpl counterService;
+    private CounterService counterService;
 
     @Test
     @DisplayName("When counter exists, should return next sequence")
@@ -104,8 +105,8 @@ class CounterServiceImplTest {
                 .thenThrow(mongoException);
 
         // When
-        InternalServerErrorException exception = assertThrows(
-                InternalServerErrorException.class,
+        InternalServerException exception = assertThrows(
+                InternalServerException.class,
                 () -> counterService.getNextSequence(sequenceName)
         );
 
