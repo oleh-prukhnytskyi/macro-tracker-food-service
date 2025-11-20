@@ -276,6 +276,7 @@ class FoodControllerTest extends AbstractIntegrationTest {
                 .detail("Validation failed for one or more parameters")
                 .traceId(MDC.get("traceId"))
                 .code(errorCode.getCode())
+                .traceId("N/A")
                 .invalidParams(List.of(new ProblemDetails.InvalidParam(
                         "findByQuery.offset",
                         "must be greater than or equal to 0"
@@ -310,6 +311,7 @@ class FoodControllerTest extends AbstractIntegrationTest {
                 .detail("Validation failed for one or more parameters")
                 .traceId(MDC.get("traceId"))
                 .code(errorCode.getCode())
+                .traceId("N/A")
                 .invalidParams(List.of(new ProblemDetails.InvalidParam(
                         "findByQuery.limit",
                         "must be greater than or equal to 1"
@@ -474,6 +476,7 @@ class FoodControllerTest extends AbstractIntegrationTest {
                 .detail("Validation failed for one or more parameters")
                 .traceId(MDC.get("traceId"))
                 .code(errorCode.getCode())
+                .traceId("N/A")
                 .invalidParams(List.of(new ProblemDetails.InvalidParam(
                         "productName",
                         "must not be null"
@@ -544,6 +547,7 @@ class FoodControllerTest extends AbstractIntegrationTest {
                 .status(errorCode.getStatus())
                 .detail("Validation failed for one or more parameters")
                 .traceId(MDC.get("traceId"))
+                .traceId("N/A")
                 .code(errorCode.getCode())
                 .invalidParams(List.of(new ProblemDetails.InvalidParam(
                         "nutriments.carbohydrates",
