@@ -97,3 +97,8 @@ jobs:
 
       - name: Push to Docker Hub
         run: docker push ${{ secrets.DOCKER_USERNAME }}/macro-tracker-food-service:latest
+
+      - name: Trigger server update
+        run: |
+          curl -X POST ${{ secrets.SERVER_URL }} \
+            -H "X-Secret-Token: ${{ secrets.SECRET_TOKEN }}"
