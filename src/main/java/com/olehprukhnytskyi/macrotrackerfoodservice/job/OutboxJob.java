@@ -1,8 +1,8 @@
 package com.olehprukhnytskyi.macrotrackerfoodservice.job;
 
-import com.olehprukhnytskyi.macrotrackerfoodservice.model.OutboxEvent;
-import com.olehprukhnytskyi.macrotrackerfoodservice.repository.jpa.OutboxRepository;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.S3StorageService;
+import com.olehprukhnytskyi.model.OutboxEvent;
+import com.olehprukhnytskyi.repository.jpa.OutboxRepository;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
