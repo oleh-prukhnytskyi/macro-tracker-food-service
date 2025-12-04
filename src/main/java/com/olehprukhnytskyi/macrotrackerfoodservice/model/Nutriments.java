@@ -1,6 +1,6 @@
 package com.olehprukhnytskyi.macrotrackerfoodservice.model;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.DecimalMin;
 import java.math.BigDecimal;
 import lombok.Data;
@@ -9,33 +9,34 @@ import org.springframework.data.mongodb.core.mapping.FieldType;
 
 @Data
 public class Nutriments {
-    @JsonProperty("energy-kcal")
+    @JsonAlias({"energy-kcal", "kcal", "calories"})
     @Field(name = "energy-kcal", targetType = FieldType.DOUBLE)
-    private BigDecimal kcal;
+    private BigDecimal calories;
 
     @Field(targetType = FieldType.DOUBLE)
     private BigDecimal fat;
 
-    @Field(targetType = FieldType.DOUBLE)
-    private BigDecimal proteins;
+    @JsonAlias({"protein", "proteins"})
+    @Field(name = "proteins", targetType = FieldType.DOUBLE)
+    private BigDecimal protein;
 
     @Field(targetType = FieldType.DOUBLE)
     private BigDecimal carbohydrates;
 
-    @JsonProperty("energy-kcal_piece")
+    @JsonAlias({"energy-kcal_piece", "caloriesPerPiece"})
     @Field(name = "energy-kcal_piece", targetType = FieldType.DOUBLE)
     @DecimalMin(value = "0.0")
-    private BigDecimal kcalPerPiece;
+    private BigDecimal caloriesPerPiece;
 
-    @JsonProperty("fat_piece")
+    @JsonAlias({"fat_piece", "fatPerPiece"})
     @Field(name = "fat_piece", targetType = FieldType.DOUBLE)
     private BigDecimal fatPerPiece;
 
-    @JsonProperty("proteins_piece")
+    @JsonAlias({"proteins_piece", "proteinPerPiece"})
     @Field(name = "proteins_piece", targetType = FieldType.DOUBLE)
-    private BigDecimal proteinsPerPiece;
+    private BigDecimal proteinPerPiece;
 
-    @JsonProperty("carbohydrates_piece")
+    @JsonAlias({"carbohydrates_piece", "carbohydratesPerPiece"})
     @Field(name = "carbohydrates_piece", targetType = FieldType.DOUBLE)
     private BigDecimal carbohydratesPerPiece;
 }

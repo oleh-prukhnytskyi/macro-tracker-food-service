@@ -1,13 +1,12 @@
 package com.olehprukhnytskyi.macrotrackerfoodservice.controller;
 
+import com.olehprukhnytskyi.config.annotation.Idempotent;
 import com.olehprukhnytskyi.dto.PagedResponse;
 import com.olehprukhnytskyi.dto.Pagination;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodPatchRequestDto;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodRequestDto;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodResponseDto;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.FoodService;
-import com.olehprukhnytskyi.macrotrackerfoodservice.service.RequestDeduplicationService;
-import com.olehprukhnytskyi.macrotrackerfoodservice.util.ProcessedEntityType;
 import com.olehprukhnytskyi.util.CustomHeaders;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -44,7 +43,6 @@ import org.springframework.web.multipart.MultipartFile;
 )
 public class FoodController {
     private final FoodService foodService;
-    private final RequestDeduplicationService requestDeduplicationService;
 
     @Operation(
             summary = "Get food by ID",
@@ -94,6 +92,7 @@ public class FoodController {
             summary = "Create food product",
             description = "Add new food product to database with optional image upload"
     )
+    @Idempotent
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<FoodResponseDto> save(
             @RequestPart("food") @Valid FoodRequestDto requestDto,
@@ -101,21 +100,7 @@ public class FoodController {
             @RequestHeader(CustomHeaders.X_USER_ID) Long userId,
             @RequestHeader(CustomHeaders.X_REQUEST_ID) String requestId) {
         log.info("Creating food product for userId={} requestId={}", userId, requestId);
-        if (requestDeduplicationService.isProcessed(
-                ProcessedEntityType.FOOD, requestId, userId)) {
-            return requestDeduplicationService
-                    .getProcessed(
-                            ProcessedEntityType.FOOD,
-                            requestId,
-                            userId,
-                            FoodResponseDto.class
-                    )
-                    .map(ResponseEntity::ok)
-                    .orElse(ResponseEntity.status(HttpStatus.CONFLICT).build());
-        }
         FoodResponseDto saved = foodService.createFoodWithImages(requestDto, image, userId);
-        requestDeduplicationService.markAsProcessed(
-                ProcessedEntityType.FOOD, requestId, userId, saved);
         log.info("Food created successfully for userId={} code={}", userId, saved.getId());
         return ResponseEntity
                 .status(HttpStatus.CREATED)

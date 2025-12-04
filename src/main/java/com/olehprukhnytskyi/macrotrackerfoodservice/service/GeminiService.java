@@ -90,9 +90,9 @@ public class GeminiService {
                         food.getProductName(),
                         food.getGenericName(),
                         food.getBrands(),
-                        food.getNutriments().getKcal(),
+                        food.getNutriments().getCalories(),
                         food.getNutriments().getFat(),
-                        food.getNutriments().getProteins(),
+                        food.getNutriments().getProtein(),
                         food.getNutriments().getCarbohydrates()
                 );
         return Map.of(

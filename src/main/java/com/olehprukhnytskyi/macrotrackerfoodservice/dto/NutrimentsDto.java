@@ -12,7 +12,7 @@ import lombok.Data;
 public class NutrimentsDto {
     @Schema(description = "Calories per 100g", example = "165.0", minimum = "0.0")
     @DecimalMin(value = "0.0")
-    private BigDecimal kcal;
+    private BigDecimal calories;
 
     @Schema(description = "Fat per 100g (g)", example = "3.6", minimum = "0.0")
     @DecimalMin(value = "0.0")
@@ -20,7 +20,7 @@ public class NutrimentsDto {
 
     @Schema(description = "Protein per 100g (g)", example = "31.0", minimum = "0.0")
     @DecimalMin(value = "0.0")
-    private BigDecimal proteins;
+    private BigDecimal protein;
 
     @Schema(description = "Carbohydrates per 100g (g)", example = "0.0", minimum = "0.0")
     @DecimalMin(value = "0.0")
@@ -28,7 +28,7 @@ public class NutrimentsDto {
 
     @Schema(description = "Calories per piece", example = "120.5", minimum = "0.0")
     @DecimalMin(value = "0.0")
-    private BigDecimal kcalPerPiece;
+    private BigDecimal caloriesPerPiece;
 
     @Schema(description = "Fat per piece (g)", example = "2.1", minimum = "0.0")
     @DecimalMin(value = "0.0")
@@ -36,7 +36,7 @@ public class NutrimentsDto {
 
     @Schema(description = "Protein per piece (g)", example = "22.5", minimum = "0.0")
     @DecimalMin(value = "0.0")
-    private BigDecimal proteinsPerPiece;
+    private BigDecimal proteinPerPiece;
 
     @Schema(description = "Carbohydrates per piece (g)", example = "0.0", minimum = "0.0")
     @DecimalMin(value = "0.0")

@@ -43,7 +43,6 @@ import com.olehprukhnytskyi.macrotrackerfoodservice.repository.mongo.FoodReposit
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.FoodService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.GeminiService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.ImageService;
-import com.olehprukhnytskyi.macrotrackerfoodservice.service.RequestDeduplicationService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.S3StorageService;
 import com.olehprukhnytskyi.util.CustomHeaders;
 import java.io.ByteArrayInputStream;
@@ -82,8 +81,6 @@ class FoodControllerTest extends AbstractIntegrationTest {
     @MockitoBean
     private S3StorageService s3StorageService;
     @MockitoBean
-    private RequestDeduplicationService requestDeduplicationService;
-    @MockitoBean
     private GeminiService geminiService;
     @MockitoBean
     private ImageService imageService;
@@ -113,10 +110,10 @@ class FoodControllerTest extends AbstractIntegrationTest {
         foodRepository.deleteAll();
 
         NutrimentsDto nutrimentsDto = new NutrimentsDto();
-        nutrimentsDto.setKcal(BigDecimal.valueOf(100));
+        nutrimentsDto.setCalories(BigDecimal.valueOf(100));
         nutrimentsDto.setCarbohydrates(BigDecimal.valueOf(100));
         nutrimentsDto.setFat(BigDecimal.valueOf(100));
-        nutrimentsDto.setProteins(BigDecimal.valueOf(100));
+        nutrimentsDto.setProtein(BigDecimal.valueOf(100));
 
         foodRequestDto = new FoodRequestDto();
         foodRequestDto.setCode("12345678");

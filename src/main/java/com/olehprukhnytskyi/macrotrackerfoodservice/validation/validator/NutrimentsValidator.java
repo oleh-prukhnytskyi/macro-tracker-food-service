@@ -12,9 +12,9 @@ public class NutrimentsValidator implements
     @Override
     public boolean isValid(NutrimentsDto dto, ConstraintValidatorContext context) {
         return Stream.of(
-                dto.getKcal(), dto.getFat(), dto.getProteins(), dto.getCarbohydrates(),
-                dto.getKcalPerPiece(), dto.getFatPerPiece(),
-                dto.getProteinsPerPiece(), dto.getCarbohydratesPerPiece()
+                dto.getCalories(), dto.getFat(), dto.getProtein(), dto.getCarbohydrates(),
+                dto.getCaloriesPerPiece(), dto.getFatPerPiece(),
+                dto.getProteinPerPiece(), dto.getCarbohydratesPerPiece()
         ).anyMatch(Objects::nonNull);
     }
 }
