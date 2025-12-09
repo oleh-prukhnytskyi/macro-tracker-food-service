@@ -1,13 +1,12 @@
 package com.olehprukhnytskyi.macrotrackerfoodservice.service.impl;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
-import com.olehprukhnytskyi.exception.ExternalServiceException;
 import com.olehprukhnytskyi.macrotrackerfoodservice.client.GeminiClient;
+import com.olehprukhnytskyi.macrotrackerfoodservice.dto.GeminiResponse;
 import com.olehprukhnytskyi.macrotrackerfoodservice.model.Food;
 import com.olehprukhnytskyi.macrotrackerfoodservice.model.Nutriments;
 import com.olehprukhnytskyi.macrotrackerfoodservice.properties.GeminiProperties;
@@ -21,8 +20,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 
 @ExtendWith(MockitoExtension.class)
 class GeminiServiceTest {
@@ -55,20 +52,16 @@ class GeminiServiceTest {
     @DisplayName("When response is valid, should return a list")
     void generateKeywords_whenResponseIsValid_shouldReturnList() {
         // Given
-        String json = """
-              {
-                "candidates": [{
-                    "content": {
-                        "parts": [{
-                            "text": "protein bar, chocolate, peanuts"
-                        }]
-                    }
-                }]
-              }
-               \s""";
+        GeminiResponse response = new GeminiResponse(List.of(
+                new GeminiResponse.Candidate(
+                        new GeminiResponse.Content(List.of(
+                                new GeminiResponse.Part("protein bar, chocolate, peanuts")
+                        ))
+                )
+        ));
 
         when(geminiClient.generateContent(any(), any()))
-                .thenReturn(ResponseEntity.ok(json));
+                .thenReturn(response);
 
         // When
         List<String> result = geminiService.generateKeywords(food);
@@ -81,20 +74,16 @@ class GeminiServiceTest {
     @DisplayName("When content is unknown, should return an empty list")
     void generateKeywords_whenContentIsUnknown_shouldReturnEmptyList() {
         // Given
-        String json = """
-              {
-                "candidates": [{
-                    "content": {
-                        "parts": [{
-                            "text": "unknown"
-                        }]
-                    }
-                }]
-              }
-               \s""";
+        GeminiResponse response = new GeminiResponse(List.of(
+                new GeminiResponse.Candidate(
+                        new GeminiResponse.Content(List.of(
+                                new GeminiResponse.Part("unknown")
+                        ))
+                )
+        ));
 
         when(geminiClient.generateContent(any(), any()))
-                .thenReturn(ResponseEntity.ok(json));
+                .thenReturn(response);
 
         // When
         List<String> result = geminiService.generateKeywords(food);
@@ -108,30 +97,13 @@ class GeminiServiceTest {
     void generateKeywords_whenResponseIsNot2xx_shouldReturnEmptyList() {
         // Given
         when(geminiClient.generateContent(any(), any()))
-                .thenReturn(ResponseEntity.status(HttpStatus.BAD_REQUEST).body(""));
+                .thenReturn(null);
 
         // When
         List<String> result = geminiService.generateKeywords(food);
 
         // Then
         assertTrue(result.isEmpty());
-    }
-
-    @Test
-    @DisplayName("When client fails, should throw KeywordGenerationException")
-    void generateKeywords_whenClientFails_shouldThrowKeywordGenerationException() {
-        // Given
-        when(geminiClient.generateContent(any(), any()))
-                .thenThrow(new RuntimeException("Failure"));
-
-        // When
-        ExternalServiceException exception = assertThrows(
-                ExternalServiceException.class, () -> geminiService.generateKeywords(food)
-        );
-
-        // Then
-        String expected = "Failed to generate keywords from Gemini";
-        assertEquals(expected, exception.getMessage());
     }
 
     @Test

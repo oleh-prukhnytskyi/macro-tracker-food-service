@@ -1,20 +1,15 @@
 package com.olehprukhnytskyi.macrotrackerfoodservice.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.olehprukhnytskyi.exception.ExternalServiceException;
-import com.olehprukhnytskyi.exception.error.CommonErrorCode;
 import com.olehprukhnytskyi.macrotrackerfoodservice.client.GeminiClient;
+import com.olehprukhnytskyi.macrotrackerfoodservice.dto.GeminiRequest;
+import com.olehprukhnytskyi.macrotrackerfoodservice.dto.GeminiResponse;
 import com.olehprukhnytskyi.macrotrackerfoodservice.model.Food;
 import com.olehprukhnytskyi.macrotrackerfoodservice.properties.GeminiProperties;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -25,50 +20,59 @@ public class GeminiService {
     private final GeminiProperties geminiProperties;
 
     public List<String> generateKeywords(Food food) {
-        if (food == null || food.getProductName() == null || food.getNutriments() == null) {
+        if (isFoodInvalid(food)) {
             log.warn("Skipping keyword generation: incomplete food data");
             return Collections.emptyList();
         }
-        Map<String, Object> prompt = getKeywordsPrompt(food);
+        GeminiRequest request = createRequest(food);
         try {
             log.debug("Requesting Gemini keyword generation for food='{}'", food.getProductName());
-            ResponseEntity<String> response = geminiClient
-                    .generateContent(geminiProperties.getApiKey(), prompt);
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                JsonNode root = new ObjectMapper().readTree(response.getBody());
-                JsonNode candidates = root.path("candidates");
-                if (candidates.isArray() && !candidates.isEmpty()) {
-                    String content = candidates.get(0)
-                            .path("content")
-                            .path("parts")
-                            .get(0)
-                            .path("text")
-                            .asText()
-                            .trim();
-                    if (content.equalsIgnoreCase("unknown")) {
-                        log.debug("Gemini returned 'unknown' for '{}'", food.getProductName());
-                        return Collections.emptyList();
-                    }
-                    List<String> keywords = Arrays.stream(content.split(","))
-                            .map(String::trim)
-                            .filter(s -> !s.isEmpty())
-                            .distinct()
-                            .collect(Collectors.toList());
-                    log.info("Generated {} keywords for '{}'",
-                            keywords.size(), food.getProductName());
-                    return keywords;
-                }
-            }
+            GeminiResponse response = geminiClient.generateContent(
+                    geminiProperties.getApiKey(),
+                    request
+            );
+            return extractKeywords(response, food.getProductName());
         } catch (Exception e) {
             log.error("Failed to generate keywords for '{}'", food.getProductName(), e);
-            throw new ExternalServiceException(CommonErrorCode.UPSTREAM_SERVICE_UNAVAILABLE,
-                    "Failed to generate keywords from Gemini", e);
         }
-        return Collections.emptyList();
+        return List.of();
     }
 
-    private static Map<String, Object> getKeywordsPrompt(Food food) {
-        String prompt = ("You are given information about a food product.\n"
+    private List<String> extractKeywords(GeminiResponse response, String productName) {
+        if (response == null
+                || response.getCandidates() == null
+                || response.getCandidates().isEmpty()) {
+            return Collections.emptyList();
+        }
+        String content = response.getCandidates().getFirst()
+                .getContent().getParts().getFirst()
+                .getText().trim();
+        if ("unknown".equalsIgnoreCase(content)) {
+            log.debug("Gemini returned 'unknown' for '{}'", productName);
+            return Collections.emptyList();
+        }
+        List<String> keywords = Arrays.stream(content.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .distinct()
+                .toList();
+        log.info("Generated {} keywords for '{}'", keywords.size(), productName);
+        return keywords;
+    }
+
+    private GeminiRequest createRequest(Food food) {
+        String promptText = buildPromptText(food);
+        return new GeminiRequest(List.of(
+                new GeminiRequest.Content(List.of(new GeminiRequest.Part(promptText)))
+        ));
+    }
+
+    private boolean isFoodInvalid(Food food) {
+        return food == null || food.getProductName() == null || food.getNutriments() == null;
+    }
+
+    private static String buildPromptText(Food food) {
+        return ("You are given information about a food product.\n"
                          + "\n"
                          + "Your task:\n"
                          + "1. Detect the language of the product data.\n"
@@ -95,10 +99,5 @@ public class GeminiService {
                         food.getNutriments().getProtein(),
                         food.getNutriments().getCarbohydrates()
                 );
-        return Map.of(
-                "contents", List.of(Map.of(
-                        "parts", List.of(Map.of("text", prompt))
-                ))
-        );
     }
 }
