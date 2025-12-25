@@ -10,6 +10,7 @@ import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
+import org.springframework.scheduling.annotation.EnableAsync;
 
 @OpenAPIDefinition(
         info = @Info(
@@ -29,6 +30,7 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
         "com.olehprukhnytskyi.macrotrackerfoodservice.model",
         "com.olehprukhnytskyi.model"
 })
+@EnableAsync
 @EnableCaching
 @EnableFeignClients
 @SpringBootApplication

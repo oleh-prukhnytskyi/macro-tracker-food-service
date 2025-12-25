@@ -5,6 +5,7 @@ import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodPatchRequestDto;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodRequestDto;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodResponseDto;
 import com.olehprukhnytskyi.macrotrackerfoodservice.model.Food;
+import java.util.List;
 import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -23,6 +24,8 @@ public interface FoodMapper {
     Food toModel(FoodRequestDto requestDto);
 
     FoodResponseDto toDto(Food food);
+
+    List<FoodResponseDto> toDto(List<Food> foods);
 
     @Mappings({
             @Mapping(target = "id", ignore = true),

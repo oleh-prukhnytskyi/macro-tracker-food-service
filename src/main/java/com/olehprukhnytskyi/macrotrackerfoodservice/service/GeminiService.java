@@ -72,25 +72,25 @@ public class GeminiService {
     }
 
     private static String buildPromptText(Food food) {
-        return ("You are given information about a food product.\n"
-                         + "\n"
-                         + "Your task:\n"
-                         + "1. Detect the language of the product data.\n"
-                         + "2. If confident what the product is, generate 5–10\n"
-                         + " relevant keywords in that language.\n"
-                         + "3. Only use specific nouns or phrases directly related\n"
-                         + " to ingredients, type of product, form, preparation method, or brand.\n"
-                         + "4. Do NOT include vague adjectives like \"tasty\", \"nutritious\",\n"
-                         + " \"healthy\", \"caloric\", or any emotional or evaluative terms.\n"
-                         + "5. Format: return ONLY a single comma-separated list of\n"
-                         + " lowercase keywords. No labels, no line breaks, no explanations.\n"
-                         + "6. If not confident what the product is — return exactly: unknown\n"
-                         + "\n"
-                         + "Product name: %s\n"
-                         + "Generic name: %s\n"
-                         + "Brand: %s\n"
-                         + "Nutritional values: kcal=%s, fat=%s, proteins=%s, carbohydrates=%s\n")
-                .formatted(
+        return """
+                You are given information about a food product.
+                         Your task:
+                         1. Detect the language of the product data.
+                         2. If confident what the product is, generate 5–10
+                         relevant keywords in that language.
+                         3. Only use specific nouns or phrases directly related
+                         to ingredients, type of product, form, preparation method, or brand.
+                         4. Do NOT include vague adjectives like tasty, nutritious,
+                         healthy, caloric, or any emotional or evaluative terms.
+                         5. Format: return ONLY a single comma-separated list of
+                         lowercase keywords. No labels, no line breaks, no explanations.
+                         6. If not confident what the product is — return exactly: unknown
+                
+                         Product name: %s
+                         Generic name: %s
+                         Brand: %s
+                         Nutritional values: kcal=%s, fat=%s, proteins=%s, carbohydrates=%s
+                """.formatted(
                         food.getProductName(),
                         food.getGenericName(),
                         food.getBrands(),

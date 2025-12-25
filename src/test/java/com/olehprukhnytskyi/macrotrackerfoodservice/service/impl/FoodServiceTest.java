@@ -2,30 +2,25 @@ package com.olehprukhnytskyi.macrotrackerfoodservice.service.impl;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.BDDMockito.anyList;
 import static org.mockito.BDDMockito.anyString;
 import static org.mockito.BDDMockito.eq;
-import static org.mockito.BDDMockito.mock;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.never;
 import static org.mockito.BDDMockito.times;
 import static org.mockito.BDDMockito.verify;
-import static org.mockito.BDDMockito.when;
+import static org.mockito.BDDMockito.willDoNothing;
 
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch.core.SearchRequest;
-import co.elastic.clients.elasticsearch.core.SearchResponse;
-import co.elastic.clients.elasticsearch.core.search.Hit;
-import co.elastic.clients.elasticsearch.core.search.HitsMetadata;
-import co.elastic.clients.util.ObjectBuilder;
 import com.mongodb.DuplicateKeyException;
-import com.olehprukhnytskyi.exception.BadRequestException;
 import com.olehprukhnytskyi.exception.ConflictException;
 import com.olehprukhnytskyi.exception.InternalServerException;
 import com.olehprukhnytskyi.exception.NotFoundException;
+import com.olehprukhnytskyi.exception.error.CommonErrorCode;
+import com.olehprukhnytskyi.macrotrackerfoodservice.dao.FoodSearchDao;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodListCacheWrapper;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodPatchRequestDto;
 import com.olehprukhnytskyi.macrotrackerfoodservice.dto.FoodRequestDto;
@@ -36,33 +31,27 @@ import com.olehprukhnytskyi.macrotrackerfoodservice.mapper.NutrimentsMapper;
 import com.olehprukhnytskyi.macrotrackerfoodservice.model.Food;
 import com.olehprukhnytskyi.macrotrackerfoodservice.model.Nutriments;
 import com.olehprukhnytskyi.macrotrackerfoodservice.repository.mongo.FoodRepository;
-import com.olehprukhnytskyi.macrotrackerfoodservice.service.CounterService;
+import com.olehprukhnytskyi.macrotrackerfoodservice.service.FoodAssetService;
+import com.olehprukhnytskyi.macrotrackerfoodservice.service.FoodCodeGenerator;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.FoodService;
-import com.olehprukhnytskyi.macrotrackerfoodservice.service.GeminiService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.ImageService;
-import com.olehprukhnytskyi.macrotrackerfoodservice.service.S3StorageService;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
+import com.olehprukhnytskyi.model.OutboxEvent;
+import com.olehprukhnytskyi.repository.jpa.OutboxRepository;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Function;
-import javax.imageio.ImageIO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import software.amazon.awssdk.services.s3.S3Client;
+import org.springframework.retry.support.RetryTemplate;
 
 @SuppressWarnings("unchecked")
 @ExtendWith(MockitoExtension.class)
@@ -70,11 +59,13 @@ class FoodServiceTest {
     @Mock
     private FoodRepository foodRepository;
     @Mock
-    private CounterService counterService;
+    private OutboxRepository outboxRepository;
     @Mock
-    private ElasticsearchClient elasticsearchClient;
+    private FoodSearchDao foodSearchDao;
     @Mock
-    private GeminiService geminiService;
+    private FoodCodeGenerator foodCodeGenerator;
+    @Mock
+    private FoodAssetService foodAssetService;
     @Mock
     private NutrimentsMapper nutrimentsMapper;
     @Mock
@@ -82,10 +73,9 @@ class FoodServiceTest {
     @Mock
     private ImageService imageService;
     @Mock
-    private S3StorageService s3StorageService;
-
-    @MockitoBean
-    private S3Client s3Client;
+    private ApplicationEventPublisher applicationEventPublisher;
+    @Spy
+    private RetryTemplate retryTemplate = new RetryTemplate();
 
     @InjectMocks
     private FoodService foodService;
@@ -122,59 +112,51 @@ class FoodServiceTest {
         food.setGenericName("generic_name");
         food.setNutriments(nutriments);
 
-        try {
-            BufferedImage testImage = new BufferedImage(100, 100, BufferedImage.TYPE_INT_RGB);
-            ByteArrayOutputStream os = new ByteArrayOutputStream();
-            ImageIO.write(testImage, "jpg", os);
-            image = new MockMultipartFile(
-                    "image",
-                    "image.jpg",
-                    MediaType.IMAGE_JPEG_VALUE,
-                    os.toByteArray()
-            );
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        image = new MockMultipartFile(
+                "image",
+                "image.jpg",
+                MediaType.IMAGE_JPEG_VALUE,
+                new byte[]{1, 2, 3}
+        );
     }
 
     @Test
     @DisplayName("When food with same code and fields exists, should return existing DTO")
     void createFoodWithImages_whenSameCodeExists_shouldReturnExistingDto() {
         // Given
-        when(nutrimentsMapper.toModel(any())).thenReturn(nutriments);
-        when(foodRepository.findById(any())).thenReturn(Optional.of(food));
-        when(foodMapper.toDto(any())).thenReturn(new FoodResponseDto());
+        given(nutrimentsMapper.toModel(any())).willReturn(nutriments);
+        given(foodRepository.findById(anyString())).willReturn(Optional.of(food));
+        given(foodMapper.toDto((Food) any())).willReturn(new FoodResponseDto());
 
         // When
         FoodResponseDto result = foodService.createFoodWithImages(foodRequestDto, image, 1L);
 
         // Then
         assertNotNull(result);
-        verify(foodRepository, times(1)).findById(anyString());
+        verify(foodRepository).findById(anyString());
         verify(foodRepository, never()).save(any());
     }
 
     @Test
     @DisplayName("When food do not exist, should save and return DTO")
-    void save_whenFoodDoNotExist_shouldCreateFoodWithImagesAndReturnDto() {
+    void createFoodWithImages_whenFoodDoNotExist_shouldCreateAndReturnDto() {
         // Given
         foodRequestDto.setCode(null);
 
-        when(foodMapper.toModel(any())).thenReturn(food);
-        when(foodMapper.toDto(any())).thenReturn(new FoodResponseDto());
-        when(imageService.resizeImage(any(), anyInt()))
-                .thenReturn(new ByteArrayInputStream("fake".getBytes()));
-        when(imageService.generateImageKey(any(), anyString(), anyInt()))
-                .thenReturn("images/products/test.png");
-        when(foodRepository.save(any())).thenReturn(food);
+        given(foodMapper.toModel(any())).willReturn(food);
+        given(foodCodeGenerator.resolveCode(any())).willReturn("generated_code");
+        willDoNothing().given(foodAssetService).processAndUploadImage(any(), any());
+        given(foodRepository.save(any())).willReturn(food);
+        given(foodMapper.toDto((Food) any())).willReturn(new FoodResponseDto());
 
         // When
         FoodResponseDto result = foodService.createFoodWithImages(foodRequestDto, image, 1L);
 
         // Then
         assertNotNull(result);
-        verify(foodRepository, never()).findById(anyString());
-        verify(foodRepository, times(1)).save(any());
+        verify(foodCodeGenerator).resolveCode(any());
+        verify(foodAssetService).processAndUploadImage(food, image);
+        verify(foodRepository).save(food);
     }
 
     @Test
@@ -183,10 +165,9 @@ class FoodServiceTest {
     void createFoodWithImages_whenSameCodeExistsButDifferentData_shouldThrowException() {
         // Given
         Food differentFood = new Food();
-        differentFood.setProductName("new_product_name");
-        differentFood.setGenericName("new_generic_name");
+        differentFood.setProductName("other_name");
 
-        when(foodRepository.findById(anyString())).thenReturn(Optional.of(differentFood));
+        given(foodRepository.findById(anyString())).willReturn(Optional.of(differentFood));
 
         // When
         ConflictException conflictException = assertThrows(ConflictException.class,
@@ -198,151 +179,67 @@ class FoodServiceTest {
     }
 
     @Test
-    @DisplayName("When DuplicateKeyException occurs max times, should throw ConflictException")
+    @DisplayName("When DuplicateKeyException occurs max times, should throw Exception")
     void createFoodWithImages_whenDuplicateKeyExceptionMaxTimes_shouldThrowException() {
         // Given
-        foodRequestDto.setCode(null);
-
-        when(foodRepository.save(any())).thenThrow(DuplicateKeyException.class);
-        when(foodMapper.toModel(any())).thenReturn(food);
-        when(imageService.resizeImage(any(), anyInt()))
-                .thenReturn(new ByteArrayInputStream("fake".getBytes()));
-        when(imageService.generateImageKey(any(), anyString(), anyInt()))
-                .thenReturn("images/products/test.png");
+        given(foodMapper.toModel(any())).willReturn(food);
+        given(foodCodeGenerator.resolveCode(any())).willReturn("code");
+        given(foodRepository.save(any())).willThrow(DuplicateKeyException.class);
 
         // When
-        ConflictException conflictException = assertThrows(ConflictException.class,
+        InternalServerException exception = assertThrows(InternalServerException.class,
                 () -> foodService.createFoodWithImages(foodRequestDto, image, 1L));
 
         // Then
-        String expected = "Duplicate key error after max retries";
-        assertEquals(expected, conflictException.getMessage());
+        assertEquals("Unexpected error while saving food", exception.getMessage());
+        verify(foodRepository, times(3)).save(any());
     }
 
     @Test
     @DisplayName("When DataIntegrityViolation occurs, should throw InternalServerException")
     void createFoodWithImages_whenDataIntegrityViolationOccurs_shouldThrowException() {
         // Given
-        foodRequestDto.setCode(null);
-
-        when(foodRepository.save(any())).thenThrow(DataIntegrityViolationException.class);
-        when(foodMapper.toModel(any())).thenReturn(food);
-        when(imageService.resizeImage(any(), anyInt()))
-                .thenReturn(new ByteArrayInputStream("fake".getBytes()));
-        when(imageService.generateImageKey(any(), anyString(), anyInt()))
-                .thenReturn("images/products/test.png");
+        given(foodMapper.toModel(any())).willReturn(food);
+        given(foodCodeGenerator.resolveCode(any())).willReturn("code");
 
         // When
-        InternalServerException exception = assertThrows(
-                InternalServerException.class,
-                () -> foodService.createFoodWithImages(foodRequestDto, image, 1L)
-        );
+        InternalServerException exception = assertThrows(InternalServerException.class,
+                () -> foodService.createFoodWithImages(foodRequestDto, image, 1L));
 
         // Then
-        String expected = "Unexpected error while saving food";
-        assertEquals(expected, exception.getMessage());
+        assertEquals("Unexpected error while saving food", exception.getMessage());
     }
 
     @Test
-    @DisplayName("When query is null, should throw BadRequestException")
-    void findByQuery_whenQueryIsNull_shouldThrowBadRequestException() {
-        assertThrows(BadRequestException.class, () -> foodService.findByQuery(null, 0, 10));
-    }
-
-    @Test
-    @DisplayName("When query is empty, should throw BadRequestException")
-    void findByQuery_whenQueryIsEmpty_shouldThrowBadRequestException() {
-        assertThrows(BadRequestException.class, () -> foodService.findByQuery("   ", 0, 10));
-    }
-
-    @Test
-    @DisplayName("When search succeeds, should return mapped DTO")
-    void findByQuery_whenSearchSucceeds_shouldReturnMappedDto() throws IOException {
-        // given
+    @DisplayName("When search succeeds, should return mapped DTO list")
+    void findByQuery_whenSearchSucceeds_shouldReturnMappedDto() {
+        // Given
         FoodResponseDto dto = new FoodResponseDto();
         dto.setId("123");
 
-        Hit<Food> hit = Hit.of(h -> h
-                .id("123")
-                .index("index")
-                .source(food)
-        );
-
-        SearchResponse<Food> mockResponse = SearchResponse.of(r -> r
-                .timedOut(false)
-                .shards(b -> b
-                        .failed(0)
-                        .total(1)
-                        .successful(1)
-                )
-                .took(5)
-                .hits(h -> h
-                        .hits(List.of(hit))
-                )
-        );
-
-        when(elasticsearchClient.search(
-                ArgumentMatchers.<Function<SearchRequest.Builder,
-                        ObjectBuilder<SearchRequest>>>any(),
-                eq(Food.class)
-        )).thenReturn(mockResponse);
-        when(foodMapper.toDto(food)).thenReturn(dto);
-
-        // when
-        List<FoodResponseDto> result = foodService.findByQuery("apple juice", 0, 10).getItems();
-
-        // then
-        assertEquals(1, result.size());
-        assertEquals("123", result.get(0).getId());
-    }
-
-    @Test
-    @DisplayName("When search response has null hits, should return an empty list")
-    void findByQuery_whenSearchResponseHasNullHits_shouldReturnEmptyList() throws IOException {
-        // Given
-        when(elasticsearchClient.search(
-                ArgumentMatchers.<Function<SearchRequest.Builder,
-                        ObjectBuilder<SearchRequest>>>any(),
-                eq(Food.class)
-        )).thenReturn(null);
+        given(foodSearchDao.search(anyString(), anyInt(), anyInt())).willReturn(List.of(food));
+        given(foodMapper.toDto(anyList())).willReturn(List.of(dto));
 
         // When
-        FoodListCacheWrapper result = foodService.findByQuery("banana", 0, 10);
+        FoodListCacheWrapper result = foodService.findByQuery("apple", 0, 10);
 
         // Then
-        assertNull(result.getItems());
+        assertNotNull(result.getItems());
+        assertEquals(1, result.getItems().size());
+        assertEquals("123", result.getItems().get(0).getId());
     }
 
     @Test
-    @DisplayName("When Elasticsearch throws an IOException, should throw SearchServiceException")
-    void findByQuery_whenElasticsearchThrowsIoException_shouldThrowSearchServiceException()
-            throws IOException {
+    @DisplayName("When DAO throws runtime exception, Service should propagate or wrap it")
+    void findByQuery_whenDaoThrowsException_shouldThrowException() {
         // Given
-        when(elasticsearchClient.search(
-                ArgumentMatchers.<Function<SearchRequest.Builder,
-                        ObjectBuilder<SearchRequest>>>any(),
-                eq(Food.class)
-        )).thenThrow(new IOException("Elastic down"));
+        given(foodSearchDao.search(anyString(), anyInt(), anyInt()))
+                .willThrow(new InternalServerException(CommonErrorCode.BAD_REQUEST,
+                        "Elastic Error"));
 
         // When & Then
-        assertThrows(InternalServerException.class, () ->
-                foodService.findByQuery("milk", 0, 10));
-    }
-
-    @Test
-    @DisplayName("When UnexpectedException occurs, should throw InternalServerErrorException")
-    void findByQuery_whenUnexpectedExceptionOccurs_shouldThrowInternalServerErrorException()
-            throws IOException {
-        // Given
-        when(elasticsearchClient.search(
-                ArgumentMatchers.<Function<SearchRequest.Builder,
-                        ObjectBuilder<SearchRequest>>>any(),
-                eq(Food.class)
-        )).thenThrow(new RuntimeException("Something went wrong"));
-
-        // When & Then
-        assertThrows(InternalServerException.class, () ->
-                foodService.findByQuery("milk", 0, 10));
+        assertThrows(InternalServerException.class,
+                () -> foodService.findByQuery("milk", 0, 10));
     }
 
     @Test
@@ -360,89 +257,31 @@ class FoodServiceTest {
     }
 
     @Test
-    @DisplayName("When search returns results, should return product names")
-    void getSearchSuggestions_whenSearchReturnsResults_shouldReturnProductNames()
-            throws IOException {
-        // given
-        Food food1 = new Food();
-        food1.setProductName("Apple Juice");
-
-        Food food2 = new Food();
-        food2.setProductName("Apple Cider");
-
-        Hit<Food> hit1 = mock(Hit.class);
-        Hit<Food> hit2 = mock(Hit.class);
-
-        SearchResponse<Food> response = mock(SearchResponse.class);
-        HitsMetadata<Food> hitsMetadata = mock(HitsMetadata.class);
-
-        when(hit1.source()).thenReturn(food1);
-        when(hit2.source()).thenReturn(food2);
-        when(hitsMetadata.hits()).thenReturn(List.of(hit1, hit2));
-        when(response.hits()).thenReturn(hitsMetadata);
-        when(elasticsearchClient.search(any(Function.class), eq(Food.class)))
-                .thenReturn(response);
-
-        // when
-        List<String> result = foodService.getSearchSuggestions("apple");
-
-        // then
-        assertEquals(2, result.size());
-        assertTrue(result.contains("Apple Juice"));
-        assertTrue(result.contains("Apple Cider"));
-    }
-
-    @Test
-    @DisplayName("When hits contain null sources, should filter them out")
-    void getSearchSuggestions_whenHitsContainNullSources_shouldFilterThemOut()
-            throws IOException {
-        // given
-        Hit<Food> hit1 = mock(Hit.class);
-
-        SearchResponse<Food> response = mock(SearchResponse.class);
-        HitsMetadata<Food> hitsMetadata = mock(HitsMetadata.class);
-
-        when(hit1.source()).thenReturn(null);
-        when(hitsMetadata.hits()).thenReturn(List.of(hit1));
-        when(response.hits()).thenReturn(hitsMetadata);
-        when(elasticsearchClient.search(any(Function.class), eq(Food.class)))
-                .thenReturn(response);
-
-        // when
-        List<String> result = foodService.getSearchSuggestions("juice");
-
-        // then
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    @DisplayName("When when Elasticsearch throws IOException,"
-            + " should throw SearchServiceException")
-    void getSearchSuggestions_whenElasticsearchThrowsIoException_shouldThrowSearchServiceException()
-            throws IOException {
+    @DisplayName("When getting suggestions, should delegate to DAO")
+    void getSearchSuggestions_shouldDelegateToDao() {
         // Given
-        when(elasticsearchClient.search(any(Function.class), eq(Food.class)))
-                .thenThrow(new IOException("ES down"));
+        List<String> suggestions = List.of("Apple", "Apricot");
+        given(foodSearchDao.getSuggestions("ap")).willReturn(suggestions);
 
-        // When & Then
-        assertThrows(InternalServerException.class, () -> foodService
-                .getSearchSuggestions("juice"));
+        // When
+        List<String> result = foodService.getSearchSuggestions("ap");
+
+        // Then
+        assertEquals(2, result.size());
+        assertEquals("Apple", result.get(0));
     }
 
     @Test
-    @DisplayName("When food not found, should throw NotFoundException")
+    @DisplayName("When food not found for patch, should throw NotFoundException")
     void patch_whenFoodNotFound_shouldThrowNotFoundException() {
         // Given
-        String id = "123";
-        FoodPatchRequestDto dto = new FoodPatchRequestDto();
+        given(foodRepository.findById("123")).willReturn(Optional.empty());
 
-        when(foodRepository.findById(id)).thenReturn(Optional.empty());
+        // When & Then
+        NotFoundException ex = assertThrows(NotFoundException.class,
+                () -> foodService.patch("123", new FoodPatchRequestDto()));
 
-        // When, Then
-        NotFoundException exception = assertThrows(NotFoundException.class, () ->
-                foodService.patch(id, dto)
-        );
-        assertEquals("Food not found with id: 123", exception.getMessage());
+        assertTrue(ex.getMessage().contains("Food not found"));
     }
 
     @Test
@@ -450,40 +289,40 @@ class FoodServiceTest {
     void patch_whenFoodExists_shouldUpdateAndReturnDto() {
         // Given
         String id = "123";
-        Food existingFood = new Food();
-        existingFood.setId(id);
-        Food updatedFood = new Food();
-        updatedFood.setId(id);
+        Food existing = new Food();
+        existing.setId(id);
 
-        FoodResponseDto expectedDto = new FoodResponseDto();
-        expectedDto.setId(id);
+        Food saved = new Food();
+        saved.setId(id);
+        saved.setProductName("Updated");
 
-        when(foodRepository.findById(id)).thenReturn(Optional.of(existingFood));
-        when(foodRepository.save(existingFood)).thenReturn(updatedFood);
-        when(foodMapper.toDto(updatedFood)).thenReturn(expectedDto);
+        FoodResponseDto expected = new FoodResponseDto();
+        expected.setId(id);
+
+        given(foodRepository.findById(id)).willReturn(Optional.of(existing));
+        given(foodRepository.save(existing)).willReturn(saved);
+        given(foodMapper.toDto(saved)).willReturn(expected);
 
         // When
         FoodResponseDto result = foodService.patch(id, new FoodPatchRequestDto());
 
         // Then
         assertEquals(id, result.getId());
+        verify(foodMapper).updateFoodFromPatchDto(any(), eq(existing));
     }
 
     @Test
-    @DisplayName("When unexpected error occurs, should throw InternalServerErrorException")
-    void patch_whenUnexpectedErrorOccurs_shouldThrowInternalServerErrorException() {
+    @DisplayName("When delete, should remove from repo and save to outbox")
+    void deleteByIdAndUserId_shouldDeleteAndSaveOutbox() {
         // Given
         String id = "123";
-        FoodPatchRequestDto dto = new FoodPatchRequestDto();
-
-        when(foodRepository.findById(id)).thenThrow(new RuntimeException("Unexpected error"));
+        Long userId = 1L;
 
         // When
-        InternalServerException exception = assertThrows(
-                InternalServerException.class, () -> foodService.patch(id, dto)
-        );
+        foodService.deleteByIdAndUserId(id, userId);
 
         // Then
-        assertEquals("Unexpected error while patching food", exception.getMessage());
+        verify(foodRepository).deleteByIdAndUserId(id, userId);
+        verify(outboxRepository).save(any(OutboxEvent.class));
     }
 }

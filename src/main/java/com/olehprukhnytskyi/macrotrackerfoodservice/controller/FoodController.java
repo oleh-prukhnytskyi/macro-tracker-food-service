@@ -97,9 +97,8 @@ public class FoodController {
     public ResponseEntity<FoodResponseDto> save(
             @RequestPart("food") @Valid FoodRequestDto requestDto,
             @RequestPart(value = "image", required = false) MultipartFile image,
-            @RequestHeader(CustomHeaders.X_USER_ID) Long userId,
-            @RequestHeader(CustomHeaders.X_REQUEST_ID) String requestId) {
-        log.info("Creating food product for userId={} requestId={}", userId, requestId);
+            @RequestHeader(CustomHeaders.X_USER_ID) Long userId) {
+        log.info("Creating food product for userId={}", userId);
         FoodResponseDto saved = foodService.createFoodWithImages(requestDto, image, userId);
         log.info("Food created successfully for userId={} code={}", userId, saved.getId());
         return ResponseEntity
