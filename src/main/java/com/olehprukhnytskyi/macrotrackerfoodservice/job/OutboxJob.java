@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,11 @@ public class OutboxJob {
     private final S3StorageService s3StorageService;
 
     @Scheduled(fixedDelay = 5000)
+    @SchedulerLock(
+            name = "processFoodDeletedEvents",
+            lockAtLeastFor = "PT2S",
+            lockAtMostFor = "PT30S"
+    )
     @Transactional
     public void processFoodDeletedEvents() {
         List<OutboxEvent> events = outboxRepository

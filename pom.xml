@@ -49,7 +49,7 @@
         <dependency>
             <groupId>com.olehprukhnytskyi</groupId>
             <artifactId>macro-tracker-common</artifactId>
-            <version>1.0.26</version>
+            <version>1.0.35</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -178,6 +178,11 @@
             <groupId>org.springframework.batch</groupId>
             <artifactId>spring-batch-test</artifactId>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-spring</artifactId>
+            <version>5.10.0</version>
         </dependency>
     </dependencies>
 
