@@ -41,7 +41,7 @@
     <repositories>
         <repository>
             <id>github</id>
-            <url>https://maven.pkg.github.com/oleh-prukhnytskyi/macro-tracker-common</url>
+            <url>https://maven.pkg.github.com/macro-tracker-platform/common</url>
         </repository>
     </repositories>
 
