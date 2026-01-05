@@ -132,6 +132,12 @@ public class FoodService {
         log.debug("Food deleted successfully id={} userId={}", id, userId);
     }
 
+    public List<FoodResponseDto> findAllByIds(List<String> foodIds) {
+        return foodRepository.findAllById(foodIds).stream()
+                .map(foodMapper::toDto)
+                .toList();
+    }
+
     private Food prepareNewFood(FoodRequestDto request, Long userId) {
         Food food = foodMapper.toModel(request);
         String code = foodCodeGenerator.resolveCode(request);

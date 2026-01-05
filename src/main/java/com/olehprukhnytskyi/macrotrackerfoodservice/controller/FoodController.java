@@ -13,6 +13,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import java.util.List;
+import java.util.Map;
+
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -55,6 +58,26 @@ public class FoodController {
         FoodResponseDto food = foodService.findById(id);
         log.debug("Food retrieved successfully for id={}", id);
         return ResponseEntity.ok(food);
+    }
+
+    @Operation(
+            summary = "Get batch food details",
+            description = """
+            Retrieve details for multiple food products by their IDs.
+            Useful for populating lists or meal templates.
+            Ids that are not found in the database will be skipped in the response.
+            """
+    )
+    @PostMapping("/batch")
+    public ResponseEntity<List<FoodResponseDto>> getFoodsDetails(
+            @RequestBody
+            @Size(max = 100, message = "Batch size cannot exceed 100 items")
+            List<String> foodIds) {
+        log.info("Fetching batch details for {} food items", foodIds.size());
+        List<FoodResponseDto> result = foodService.findAllByIds(foodIds);
+        log.debug("Batch retrieval completed. Found {} items out of requested {}",
+                result.size(), foodIds.size());
+        return ResponseEntity.ok(result);
     }
 
     @Operation(
