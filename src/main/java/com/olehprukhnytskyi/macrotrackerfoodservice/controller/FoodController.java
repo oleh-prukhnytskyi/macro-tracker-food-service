@@ -59,6 +59,27 @@ public class FoodController {
     }
 
     @Operation(
+            summary = "Get user's food products",
+            description = """
+            Retrieve a paginated list of food products created by the current user.
+            Returns an empty list if no products are found.
+            """
+    )
+    @GetMapping("/my-foods")
+    public ResponseEntity<PagedResponse<FoodResponseDto>> getUserFoods(
+            @RequestHeader(CustomHeaders.X_USER_ID) Long userId,
+            @RequestParam(defaultValue = "0") @Min(0) int offset,
+            @RequestParam(defaultValue = "25") @Min(1) int limit) {
+        log.info("Fetching foods for userId={} offset={} limit={}", userId, offset, limit);
+        List<FoodResponseDto> foods = foodService.findAllByUserId(userId, offset, limit);
+        Pagination pagination = new Pagination(offset, limit, foods.size());
+        log.debug("Retrieved {} foods for userId={}", foods.size(), userId);
+        return ResponseEntity
+                .status(foods.isEmpty() ? HttpStatus.NO_CONTENT : HttpStatus.OK)
+                .body(new PagedResponse<>(foods, pagination));
+    }
+
+    @Operation(
             summary = "Get batch food details",
             description = """
             Retrieve details for multiple food products by their IDs.

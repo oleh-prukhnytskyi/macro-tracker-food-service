@@ -22,6 +22,7 @@ import com.olehprukhnytskyi.macrotrackerfoodservice.model.Food;
 import com.olehprukhnytskyi.macrotrackerfoodservice.repository.mongo.FoodRepository;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.FoodService;
 import com.olehprukhnytskyi.macrotrackerfoodservice.service.S3StorageService;
+import com.olehprukhnytskyi.macrotrackerfoodservice.util.CacheConstants;
 import com.olehprukhnytskyi.model.OutboxEvent;
 import com.olehprukhnytskyi.repository.jpa.OutboxRepository;
 import java.io.IOException;
@@ -103,7 +104,7 @@ class FoodServiceCacheTest extends AbstractIntegrationTest {
         FoodResponseDto dto1 = foodService.findById(id);
         verify(foodRepository, times(1)).findById(id);
 
-        Object cached1 = redisTemplate.opsForValue().get("food:data::" + id);
+        Object cached1 = redisTemplate.opsForValue().get(CacheConstants.FOOD_DATA + "::" + id);
         assertThat(cached1).isNotNull();
         assertThat(((FoodResponseDto) cached1).getId()).isEqualTo(id);
 
@@ -146,7 +147,7 @@ class FoodServiceCacheTest extends AbstractIntegrationTest {
                 eq(Food.class)
         );
 
-        String cacheKey = "search:suggestions::"
+        String cacheKey = CacheConstants.SEARCH_SUGGESTIONS + "::"
                 + DigestUtils.md5DigestAsHex(query.trim().toLowerCase().getBytes());
         Object cached = redisTemplate.opsForValue().get(cacheKey);
         assertThat(cached).isNotNull();
@@ -169,20 +170,21 @@ class FoodServiceCacheTest extends AbstractIntegrationTest {
                 .userId(1L)
                 .productName("Old name")
                 .build();
-        FoodPatchRequestDto patchDto = FoodPatchRequestDto.builder()
-                .productName("New name")
-                .build();
 
         when(foodRepository.findById(id)).thenReturn(Optional.of(entity));
+        when(foodRepository.save(any(Food.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         // When
         FoodResponseDto before = foodService.findById(id);
         assertThat(before.getProductName()).isEqualTo("Old name");
-        foodService.patch(id, patchDto);
+        foodService.patch(id, FoodPatchRequestDto.builder()
+                .productName("New name")
+                .build());
         foodService.findById(id);
 
         // Then
-        Object cached = redisTemplate.opsForValue().get("food:data::" + id);
+        Object cached = redisTemplate.opsForValue().get(CacheConstants.FOOD_DATA + "::" + id);
         assertThat(cached).isNotNull();
         assertThat(((FoodResponseDto) cached).getProductName()).isEqualTo("New name");
     }
@@ -193,7 +195,7 @@ class FoodServiceCacheTest extends AbstractIntegrationTest {
         // Given
         String id = "123";
         Long userId = 5L;
-        String cacheKey = "food:data::" + id;
+        String cacheKey = CacheConstants.FOOD_DATA + "::" + id;
 
         FoodResponseDto dto = FoodResponseDto.builder()
                 .id(id)

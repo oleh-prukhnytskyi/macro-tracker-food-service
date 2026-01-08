@@ -16,6 +16,7 @@ import com.olehprukhnytskyi.macrotrackerfoodservice.mapper.FoodMapper;
 import com.olehprukhnytskyi.macrotrackerfoodservice.mapper.NutrimentsMapper;
 import com.olehprukhnytskyi.macrotrackerfoodservice.model.Food;
 import com.olehprukhnytskyi.macrotrackerfoodservice.repository.mongo.FoodRepository;
+import com.olehprukhnytskyi.macrotrackerfoodservice.util.CacheConstants;
 import com.olehprukhnytskyi.model.OutboxEvent;
 import com.olehprukhnytskyi.repository.jpa.OutboxRepository;
 import java.util.List;
@@ -23,8 +24,11 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +49,7 @@ public class FoodService {
     private final RetryTemplate retryTemplate;
 
     @Transactional
+    @CachePut(value = CacheConstants.FOOD_DATA, key = "#result.id")
     public FoodResponseDto createFoodWithImages(FoodRequestDto dto,
                                                 MultipartFile image, Long userId) {
         log.info("Creating new food item for userId={}", userId);
@@ -69,8 +74,16 @@ public class FoodService {
         }
     }
 
+    public List<FoodResponseDto> findAllByUserId(Long userId, int offset, int limit) {
+        Pageable pageable = PageRequest.of(offset / limit, limit);
+        return foodRepository.findAllByUserId(userId, pageable)
+                .stream()
+                .map(foodMapper::toDto)
+                .toList();
+    }
+
     @Cacheable(
-            value = "search:results",
+            value = CacheConstants.SEARCH_RESULTS,
             key = "T(org.springframework.util.DigestUtils).md5DigestAsHex((#query"
                     + ".trim().toLowerCase() + '-' + #offset + '-' + #limit).getBytes())",
             unless = "#result == null || #result.items.isEmpty()"
@@ -81,7 +94,7 @@ public class FoodService {
         return new FoodListCacheWrapper(foodMapper.toDto(foods));
     }
 
-    @Cacheable(value = "food:data", key = "#id")
+    @Cacheable(value = CacheConstants.FOOD_DATA, key = "#id")
     public FoodResponseDto findById(String id) {
         log.debug("Fetching food by id={}", id);
         Food food = foodRepository.findById(id)
@@ -91,7 +104,7 @@ public class FoodService {
     }
 
     @Cacheable(
-            value = "search:suggestions",
+            value = CacheConstants.SEARCH_SUGGESTIONS,
             key = "T(org.springframework.util.DigestUtils)"
                     + ".md5DigestAsHex(#query.trim().toLowerCase().getBytes())",
             unless = "#result == null || #result.isEmpty()"
@@ -101,7 +114,7 @@ public class FoodService {
         return foodSearchDao.getSuggestions(query);
     }
 
-    @CacheEvict(value = "food:data", key = "#id")
+    @CachePut(value = CacheConstants.FOOD_DATA, key = "#id")
     public FoodResponseDto patch(String id, FoodPatchRequestDto dto) {
         log.info("Updating food id={}", id);
         try {
@@ -119,7 +132,7 @@ public class FoodService {
         }
     }
 
-    @CacheEvict(value = "food:data", key = "#id")
+    @CacheEvict(value = CacheConstants.FOOD_DATA, key = "#id")
     @Transactional
     public void deleteByIdAndUserId(String id, Long userId) {
         log.info("Deleting food id={} userId={}", id, userId);

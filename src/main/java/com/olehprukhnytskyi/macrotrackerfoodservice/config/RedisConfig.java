@@ -1,5 +1,6 @@
 package com.olehprukhnytskyi.macrotrackerfoodservice.config;
 
+import com.olehprukhnytskyi.macrotrackerfoodservice.util.CacheConstants;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -41,9 +42,10 @@ public class RedisConfig {
                 .disableCachingNullValues();
 
         Map<String, RedisCacheConfiguration> configs = new HashMap<>();
-        configs.put("food:data", defaultConfig.entryTtl(Duration.ofHours(24)));
-        configs.put("search:suggestions", defaultConfig.entryTtl(Duration.ofMinutes(30)));
-        configs.put("search:results", defaultConfig.entryTtl(Duration.ofMinutes(30)));
+        configs.put(CacheConstants.FOOD_DATA, defaultConfig.entryTtl(Duration.ofHours(24)));
+        configs.put(CacheConstants.SEARCH_SUGGESTIONS, defaultConfig
+                .entryTtl(Duration.ofMinutes(30)));
+        configs.put(CacheConstants.SEARCH_RESULTS, defaultConfig.entryTtl(Duration.ofMinutes(30)));
 
         return RedisCacheManager.builder(cf)
                 .cacheDefaults(defaultConfig)
