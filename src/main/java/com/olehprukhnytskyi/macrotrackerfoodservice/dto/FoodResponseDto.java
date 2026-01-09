@@ -18,6 +18,9 @@ public class FoodResponseDto {
     @Schema(description = "Product barcode", example = "5901234123457")
     private String code;
 
+    @Schema(description = "ID of the user who created the product", example = "12345")
+    private Long userId;
+
     @Schema(description = "Product name", example = "Organic Chicken Breast")
     private String productName;
 

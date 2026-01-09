@@ -182,6 +182,7 @@ class FoodControllerTest extends AbstractIntegrationTest {
         FoodResponseDto foodDto = FoodResponseDto.builder()
                 .id(foodId)
                 .code(foodId)
+                .userId(1L)
                 .productName("Rice")
                 .build();
 
@@ -509,6 +510,7 @@ class FoodControllerTest extends AbstractIntegrationTest {
                 .id("11111111")
                 .code("11111111")
                 .productName("New product name")
+                .userId(1L)
                 .build();
         String expected = objectMapper.writeValueAsString(responseDto);
 
